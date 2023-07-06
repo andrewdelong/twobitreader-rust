@@ -1,0 +1,30 @@
+[package]
+name = "twobitreader"
+version = "0.1.0"
+edition = "2021"
+authors = ["Andrew Delong <andrew.delong@gmail.com>"]
+readme = "README.md"
+description = "Fast 2bit file reader"
+repository = "https://github.com/andrewdelong/twobitreader-rust"
+license = "MIT OR Apache-2.0"
+keywords = ["2bit", "twobit", "bioinformatics", "file", "library"]
+exclude = ["tests/", "benches/", "doc/", "*.code-workspace", ".*"]
+
+[dependencies]
+byteorder = "1"
+memmap2 = "0"
+num_cpus = "1"
+seq-macro = "0"
+
+[dev-dependencies]
+flate2 = "1"
+itertools = "0"
+rayon = "1"
+reqwest = { version = "0", features = ["blocking"] }
+
+[[bench]]
+name = "bench_twobitreader"
+harness = false
+
+[package.metadata.docs.rs]
+rustdoc-args = ["--html-in-header", ".cargo/style.html"]

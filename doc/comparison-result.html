@@ -1,0 +1,111 @@
+<table style="font-size:.85em;">
+<thead>
+<tr>
+    <th rowspan=2 colspan=2 style="border:none; vertical-align:bottom;"></th>
+    <th colspan=5>file in page cache (hot)</th>
+    <th style="border:none; padding:4pt;"></th>
+    <th colspan=5>file <i>not</i> in page cache (cold)</th>
+</tr>
+<tr>
+    <th colspan=2>sequential</th>
+    <th style="border:none; padding:4pt;"></th>
+    <th colspan=2>parallel</th>
+    <th style="border:none; padding:4pt;"></th>
+    <th colspan=2>sequential</th>
+    <th style="border:none; padding:4pt;"></th>
+    <th colspan=2>parallel</th>
+</tr>
+<tr>
+    <th style="border:none;"></th>
+    <th style="border:none; padding:4pt;"></th>
+    <th>exons</th>
+    <th>transcripts</th>
+    <th style="border:none; padding:4pt;"></th>
+    <th>exons</th>
+    <th>transcripts</th>
+    <th style="border:none; padding:4pt;"></th>
+    <th>exons</th>
+    <th>transcripts</th>
+    <th style="border:none; padding:4pt;"></th>
+    <th>exons</th>
+    <th>transcripts</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+    <td style="font-weight:bold;">twobitreader (rust)</td>
+    <td style="border:none; padding:4pt;"></td>
+    <td style="text-align:right">88</td>
+    <td style="text-align:right">160</td>
+    <th style="border:none; padding:4pt;"></th>
+    <td style="text-align:right">12</td>
+    <td style="text-align:right">26</td>
+    <td style="border:none; padding:4pt;"></td>
+    <td style="text-align:right">2,200</td>
+    <td style="text-align:right">2,600</td>
+    <th style="border:none; padding:4pt;"></th>
+    <td style="text-align:right">210</td>
+    <td style="text-align:right">220</td>
+</tr>
+<tr>
+    <td style="font-weight:bold">py2bit (C, python)</td>
+    <td style="border:none; padding:4pt;"></td>
+    <td style="text-align:right">180</td>
+    <td style="text-align:right">400</td>
+    <th style="border:none; padding:4pt;"></th>
+    <td style="text-align:right;color:#888">n/a</td>
+    <td style="text-align:right;color:#888">n/a</td>
+    <td style="border:none; padding:4pt;"></td>
+    <td style="text-align:right">3,100</td>
+    <td style="text-align:right">4,000</td>
+    <th style="border:none; padding:4pt;"></th>
+    <td style="text-align:right;color:#888">n/a</td>
+    <td style="text-align:right;color:#888">n/a</td>
+</tr>
+<tr>
+    <td style="font-weight:bold">twobit (rust)</td>
+    <td style="border:none; padding:4pt;"></td>
+    <td style="text-align:right">390</td>
+    <td style="text-align:right">890</td>
+    <th style="border:none; padding:4pt;"></th>
+    <td style="text-align:right;color:#888">n/a</td>
+    <td style="text-align:right;color:#888">n/a</td>
+    <td style="border:none; padding:4pt;"></td>
+    <td style="text-align:right">3,500</td>
+    <td style="text-align:right">7,700</td>
+    <th style="border:none; padding:4pt;"></th>
+    <td style="text-align:right;color:#888">n/a</td>
+    <td style="text-align:right;color:#888">n/a</td>
+</tr>
+<tr>
+    <td style="font-weight:bold">twobitToFa (C)</td>
+    <td style="border:none; padding:4pt;"></td>
+    <td style="text-align:right">1,000</td>
+    <td style="text-align:right">2,100</td>
+    <th style="border:none; padding:4pt;"></th>
+    <td style="text-align:right">340</td>
+    <td style="text-align:right">840</td>
+    <td style="border:none; padding:4pt;"></td>
+    <td style="text-align:right">4,500</td>
+    <td style="text-align:right">6,900</td>
+    <th style="border:none; padding:4pt;"></th>
+    <td style="text-align:right">850</td>
+    <td style="text-align:right">1,200</td>
+</tr>
+<tr>
+    <td style="font-weight:bold">twobitreader (python)</td>
+    <td style="border:none; padding:4pt;"></td>
+    <td style="text-align:right">7,200</td>
+    <td style="text-align:right">13,000</td>
+    <th style="border:none; padding:4pt;"></th>
+    <td style="text-align:right">1,900</td>
+    <td style="text-align:right">2,800</td>
+    <td style="border:none; padding:4pt;"></td>
+    <td style="text-align:right">13,000</td>
+    <td style="text-align:right">21,000</td>
+    <th style="border:none; padding:4pt;"></th>
+    <td style="text-align:right">2,300</td>
+    <td style="text-align:right">3,500</td>
+</tr>
+</tbody>
+</table>

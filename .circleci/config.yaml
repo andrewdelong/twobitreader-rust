@@ -1,0 +1,21 @@
+version: 2.1
+
+jobs:
+  build-and-test:
+    docker:
+      - image: cimg/rust:1.70
+    steps:
+      - checkout
+      - run: cargo --version
+      - run:
+          name: Build Debug
+          command: "cargo build"
+      - run:
+          name: Run Tests
+          command: "cargo test"
+      - run:
+          name: Build Release
+          command: "cargo build --release"
+      - run:
+          name: Run Bench
+          command: "cargo bench"
