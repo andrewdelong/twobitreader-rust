@@ -3,7 +3,7 @@ version: 2.1
 jobs:
   build_test_bench:
     docker:
-      - image: cimg/rust:1.70
+      - image: cimg/rust:1.70.0
     steps:
       - checkout
       - run: "cargo generate-lockfile"
