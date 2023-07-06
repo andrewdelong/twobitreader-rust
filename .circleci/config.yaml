@@ -1,44 +1,17 @@
 version: 2.1
 
 jobs:
-  cargo_build:
+  build_test_bench:
     docker:
       - image: cimg/rust:1.70
     steps:
       - checkout
       - run: "cargo build"
-
-  cargo_test:
-    docker:
-      - image: cimg/rust:1.70
-    steps:
-      - checkout
       - run: "cargo test"
-
-  cargo_build_release:
-    docker:
-      - image: cimg/rust:1.70
-    steps:
-      - checkout
       - run: "cargo build --release"
-
-  cargo_bench:
-    docker:
-      - image: cimg/rust:1.70
-    steps:
-      - checkout
       - run: "cargo bench"
 
 workflows:
-  build_test_bench:
+  main:
     jobs:
-      - cargo_build
-      - cargo_test:
-          requires:
-            - cargo_build
-      - cargo_build_release:
-          requires:
-            - cargo_test
-      - cargo_bench:
-          requires:
-            - cargo_build_release
+      - build_test_bench
