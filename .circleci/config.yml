@@ -1,18 +1,24 @@
 version: 2.1
 
 jobs:
-  build_test_bench:
+  build-test-bench:
     docker:
       - image: cimg/rust:1.70.0
     steps:
       - checkout
       - run: "cargo generate-lockfile"
+      - restore_cache:
+          key: cargo-{{ checksum "Cargo.lock" }}
       - run: "cargo build"
       - run: "cargo test"
       - run: "cargo build --release"
       - run: "cargo bench"
+      - save_cache:
+          key: cargo-{{ checksum "Cargo.lock" }}
+          paths:
+            - ~/.cargo
 
 workflows:
-  main:
+  build-test-bench-workflow:
     jobs:
-      - build_test_bench
+      - build-test-bench
