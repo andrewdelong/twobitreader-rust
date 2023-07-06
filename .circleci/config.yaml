@@ -1,21 +1,44 @@
 version: 2.1
 
 jobs:
-  build-and-test:
+  cargo_build:
     docker:
       - image: cimg/rust:1.70
     steps:
       - checkout
-      - run: cargo --version
-      - run:
-          name: Build Debug
-          command: "cargo build"
-      - run:
-          name: Run Tests
-          command: "cargo test"
-      - run:
-          name: Build Release
-          command: "cargo build --release"
-      - run:
-          name: Run Bench
-          command: "cargo bench"
+      - run: "cargo build"
+
+  cargo_test:
+    docker:
+      - image: cimg/rust:1.70
+    steps:
+      - checkout
+      - run: "cargo test"
+
+  cargo_build_release:
+    docker:
+      - image: cimg/rust:1.70
+    steps:
+      - checkout
+      - run: "cargo build --release"
+
+  cargo_bench:
+    docker:
+      - image: cimg/rust:1.70
+    steps:
+      - checkout
+      - run: "cargo bench"
+
+workflows:
+  build_test_bench:
+    jobs:
+      - cargo_build
+      - cargo_test:
+          requires:
+            - cargo_build
+      - cargo_build_release:
+          requires:
+            - cargo_test
+      - cargo_bench:
+          requires:
+            - cargo_build_release

@@ -1,6 +1,5 @@
-//! This crate provides fast DNA sequence extraction from
-//! [2bit files](http://genome.ucsc.edu/FAQ/FAQformat.html#format7),
-//! a standard format in bioinformatics.
+//! This crate provides fast DNA sequence extraction from 2bit files, a
+//! [standard format](http://genome.ucsc.edu/FAQ/FAQformat.html#format7) in bioinformatics.
 //! 
 //! The motivation for this crate is speed.
 //! Extracting sequences is 1.5-30x faster than the best alternative, depending on use case.
