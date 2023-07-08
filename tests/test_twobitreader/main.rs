@@ -3,14 +3,13 @@ use twobitreader::TwobitReader;
 // Standard library
 use std::collections::HashMap;
 use std::error::Error;
-use std::fs::{File, OpenOptions};
-use std::io::{self, BufRead, Write};
+use std::io;
 use std::iter::{once, repeat, zip};
-use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::path::Path;
 
-// Dependencies
-use reqwest::blocking::Client;
+// Modules
+mod util;
+use util::*;
 
 fn open_tiny() -> TwobitReader {
     let r = TwobitReader::open("tests/assets/tiny-lilend.2bit");
@@ -229,51 +228,6 @@ fn test_concat_invalid_name_panic() {
 #[should_panic(expected = "invalid end")]
 fn test_concat_invalid_end_panic() {
     open_tiny().concat("seq_xy", [(0, 1), (2, 61)]);
-}
-
-// Reads a FASTA file where description lines all adhere to ">chrom:start-end" format.
-// The returned Vec has structure:
-//   Vec<(chrom, start, end, seq)>
-fn read_test_fasta<P: AsRef<Path>>(path: P) -> Result<Vec<(String, usize, usize, String)>, Box<dyn Error>> {
-    let lines = io::BufReader::new(File::open(path)?).lines();
-    let mut r = Vec::new();
-    // TODO: Lines<B> creates new string each iteration; instead call read_line
-    // directly or read_until('\n') which is even faster for ASCII
-    for line in lines {
-        let line = line?;
-        if line.starts_with('>') {
-            // Parse ">chrom:start-end"
-            let i = line.find(':').ok_or("expected description line chrom:start-end")?;
-            let j = line.find('-').ok_or("expected description line chrom:start-end")?;
-            let chrom = line[1..i].to_string();
-            let start = line[i + 1..j].parse::<usize>()?;
-            let end = line[j + 1..].parse::<usize>()?;
-            r.push((chrom, start, end, String::new()));
-        } else if !line.is_empty() && !line.starts_with(';') {
-            let seq = &mut r.last_mut().ok_or("expected description line before sequence")?.3; // .3 = String of dna
-            seq.push_str(&line);
-        }
-    }
-    Ok(r)
-}
-
-// Returns a local path to the hg38 2bit file used for tests on human reference genome.
-// If the local file does not yet exist, the function will attempt to download it from UCSC.
-// WARNING: Should not be called by multiple tests. Tests are run in parallel, and this code
-//          has an obvious race condition on the output file if used in multiple tests.
-fn download_hg38() -> Result<PathBuf, Box<dyn Error>> {
-    let path = Path::new("tests/assets/hg38.p13.2bit");
-    if !path.exists() {
-        // Download binary contents of 2bit and write to a local file.
-        let url = "https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/p13/hg38.p13.2bit";
-        let client = Client::builder()
-            .timeout(Duration::new(240, 0)) // Give 4 minutes to download ~800MB
-            .build()?;
-        let data = client.get(url).send()?.error_for_status()?.bytes()?;
-        let mut file = OpenOptions::new().write(true).create_new(true).open(path)?;
-        file.write_all(&data)?;
-    }
-    Ok(path.to_path_buf())
 }
 
 #[test]

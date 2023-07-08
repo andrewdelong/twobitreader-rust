@@ -7,8 +7,8 @@ use std::hint::black_box;
 use std::time::{Duration, Instant};
 
 // Modules
-mod bench_util;
-use bench_util::*;
+mod util;
+use util::*;
 
 // Dependencies
 use rayon::prelude::*;
@@ -17,8 +17,8 @@ use rayon::prelude::*;
 // - The get_batch function is designed to be comparably fast as rayon, but if
 //   a project already uses rayon for parallelism, then it's actually better to
 //   use rayon's par_iter() rather than using get_batch.
-// - Rayon reuses a thread pool, so it avoids the overhead of thread creation
-//   on all but the first invocation of a benchmarked function.
+// - Why? Because rayon reuses a thread pool, so it avoids the overhead of thread
+//   creation on all but the first invocation of a benchmarked function.
 
 // Load hg38 exon intervals and time how long it takes to extract their DNA.
 fn bench_hg38_exons(use_rayon: bool) -> Result<Duration, Box<dyn Error>> {
