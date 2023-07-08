@@ -81,6 +81,5 @@ fn main() -> Result<(), Box<dyn Error>> {
     bench("hg38_exons_rayon", || bench_hg38_exons(true), 5, "ms");
     bench("hg38_transcripts_basic", || bench_hg38_transcripts(false), 5, "ms");
     bench("hg38_transcripts_rayon", || bench_hg38_transcripts(true), 5, "ms");
-    bench("hg38_exons_basic", || bench_hg38_exons(false), 5, "ms");
     Ok(())
 }
