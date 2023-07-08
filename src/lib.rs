@@ -1,11 +1,11 @@
 //! This crate provides fast DNA sequence extraction from 2bit files, a
 //! [standard format](http://genome.ucsc.edu/FAQ/FAQformat.html#format7) in bioinformatics.
-//! 
+//!
 //! The motivation for this crate is speed.
 //! Extracting sequences is 1.5-30x faster than the best alternative, depending on use case.
-//! 
+//!
 //! # Examples
-//! 
+//!
 //! **Extracting sequences** is straightforward with [`TwobitReader`]:
 //! ```no_run
 //! # use std::io;
@@ -14,7 +14,7 @@
 //! let seq = tbr.get("chr1", 10000, 10005);     // String ("TAACC")
 //! # Ok::<(), io::Error>(())
 //! ```
-//! 
+//!
 //! **Batch extraction** is fast.
 //! It works by iterating over (chrom, start, end) triplets in parallel:
 //! ```no_run
@@ -26,7 +26,7 @@
 //! let seqs = tbr.get_batch(args);     // Vec<String>
 //! # Ok::<(), io::Error>(())
 //! ```
-//! 
+//!
 //! **Concatenation** works by iterating over (start, end) pairs.
 //! For example, assembling a spliced transcript:
 //! ```no_run
@@ -36,7 +36,7 @@
 //! # let tbr = TwobitReader::open("hg38.2bit")?;
 //! // Exon ranges for human FKHL6 gene transcript (Gencode v43)
 //! let exons = [(1389575, 1391118),             // Exon 1 (start, end)
-//!              (1394695, 1395603)];            // Exon 2 (start, end) 
+//!              (1394695, 1395603)];            // Exon 2 (start, end)
 //! let transcript = tbr.concat("chr6", exons);  // String
 //! # //
 //! # // Same, but with zipped parallel arrays
@@ -45,7 +45,7 @@
 //! # let transcript = tbr.concat("chr6", zip(starts, ends));
 //! # Ok::<(), io::Error>(())
 //! ```
-//! 
+//!
 //! **Parallelism** is easy with crates like [`rayon`](https://docs.rs/rayon/latest/rayon/).
 //! For example, assembling a batch of spliced transcripts in parallel:
 //! ```no_run
@@ -65,16 +65,16 @@
 //! let seqs = transcripts.into_par_iter()
 //!                       .map(|(id, chrom, exons)| (id, tbr.concat(chrom, exons)))
 //!                       .collect::<HashMap<_, _>>();  // HashMap<&str, String>
-//! let seq = &seqs["ENST00000407983.7"];               // Look up transcript sequence 
+//! let seq = &seqs["ENST00000407983.7"];               // Look up transcript sequence
 //! # Ok::<(), io::Error>(())
 //! ```
-//! 
+//!
 //! # Speed
-//! 
+//!
 //! Two tasks were benchmarked:
 //! - **exons**: extract 133,388 distinct human exon sequences;
 //! - **transcripts**: concatenate 319,468 exons into 29,180 human spliced transcript sequences.
-//! 
+//!
 //! Speed depends on parallelism and page cache (hot vs cold):
 //! - **hot** represents computations that are repeated, or are run interactively, on the same server;
 //! - **cold** represents a first run of a computational pipeline, and is bound by disk speed.
@@ -83,35 +83,35 @@
 #![doc = include_str!("../doc/comparison-result.html")]
 //!
 //! # Dependencies
-//! 
+//!
 //! * `byteorder` for handling endian-ness
 //! * `memmap2` for memory mapping the 2bit file
 //! * `num_cpus` for spawning parallel workers
 //! * `seq-macro` for generating 2bit decoder lookup table
 
 // Standard library
-use std::fs::File;
-use std::io::{self, Cursor, Read};
-use std::ops::Index;
-use std::mem::size_of;
-use std::ptr;
-use std::vec;
-use std::iter::{zip, repeat_with};
-use std::path::Path;
-use std::panic;
-use std::slice;
+use std::borrow::Borrow;
 use std::collections::HashMap;
-use core::borrow::Borrow;
-use core::hash::Hash;
+use std::fs::File;
+use std::hash::Hash;
+use std::io::{self, Cursor, ErrorKind::InvalidData, ErrorKind::UnexpectedEof, Read};
+use std::iter::{repeat_with, zip};
+use std::mem::size_of;
+use std::ops::Index;
+use std::panic;
+use std::path::Path;
+use std::ptr;
+use std::slice;
+use std::vec;
 
 // Crate modules
-mod parallel;
-use parallel::{parallel_for, try_parallel_for};
 mod decode;
 use decode::{decode, NUCS_PER_U8};
+mod parallel;
+use parallel::{parallel_for, try_parallel_for};
 
 // Dependencies
-use byteorder::{BigEndian, LittleEndian, ReadBytesExt, ByteOrder};
+use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt};
 use memmap2::{Mmap, MmapOptions};
 
 // Big-endian 2bit files are supported by this crate, but big-endian compile targets are not.
@@ -119,23 +119,23 @@ use memmap2::{Mmap, MmapOptions};
 compile_error!("twobitreader is not yet implemented for big-endian targets.");
 
 /// A reader for a single [2bit file](http://genome.ucsc.edu/FAQ/FAQformat.html#format7).
-/// 
-#[allow(dead_code)]                       // Suppress "mmap unused" warning; only referenced via *const u8s.
-pub struct TwobitReader {    
-    mmap: Mmap,                           // Memory map of entire 2bit file
-    seqs: Vec<TwobitSequence>,            // Sequence data, in same order as in the file
-    seq_by_name: HashMap<String, usize>,  // Lookup sequence index (seqs[index]) by name.
+///
+#[allow(dead_code)] // Suppress "mmap unused" warning; only referenced via *const u8s.
+pub struct TwobitReader {
+    mmap: Mmap,                          // Memory map of entire 2bit file
+    seqs: Vec<TwobitSequence>,           // Sequence data, in same order as in the file
+    seq_by_name: HashMap<String, usize>, // Lookup sequence index (seqs[index]) by name.
 }
 
 /// A reader for a specific sequence record within the 2bit file.
-/// 
+///
 pub struct TwobitSequence {
-    dna_ptr: *const u8,     // Pointer to first byte of packed DNA sequence data
-    dna_bytes: usize,       // Number of bytes (not nucleotides!) of packed DNA
-    dna_len: usize,         // Number of nucleotides (not bytes!) in DNA sequence
-    nblocks: Blocks,        // N block starts and ends [start0, end0, start1, end1, ...]
-    masks: Blocks,          // Mask block starts and ends
-    name: String,           // Sequence name ("chr3", etc.)
+    dna_ptr: *const u8, // Pointer to first byte of packed DNA sequence data
+    dna_bytes: usize,   // Number of bytes (not nucleotides!) of packed DNA
+    dna_len: usize,     // Number of nucleotides (not bytes!) in DNA sequence
+    nblocks: Blocks,    // N block starts and ends [start0, end0, start1, end1, ...]
+    masks: Blocks,      // Mask block starts and ends
+    name: String,       // Sequence name ("chr3", etc.)
 }
 
 // Sorted parallel arrays where (starts[i], ends[i]) is the range of one N-block or
@@ -152,9 +152,10 @@ unsafe impl Sync for TwobitSequence {}
 unsafe impl Send for TwobitSequence {}
 
 impl TwobitReader {
-
     /// Opens a 2bit file for reading.
-    /// 
+    ///
+    /// # Example
+    ///
     /// ```no_run
     /// # use std::io;
     /// # use twobitreader::TwobitReader;
@@ -167,13 +168,15 @@ impl TwobitReader {
     }
 
     /// Opens a 2bit file for reading, with lowercase masks applied.
-    /// 
+    ///
     /// The lowercase mask feature of 2bit files is mainly relevant for
     /// sequence search, for example with the
     /// [BLAT suite](https://genome.ucsc.edu/goldenpath/help/blatSpec.html) of tools.
     /// Specifically, lowercase letters typically indicate a region that should be ignored
     /// (not searched) during a sequence search.
-    /// 
+    ///
+    /// # Example
+    ///
     /// ```no_run
     /// # use std::io;
     /// # use twobitreader::TwobitReader;
@@ -195,22 +198,22 @@ impl TwobitReader {
         // Allow fast lookup of sequences by name
         let seq_by_name = HashMap::from_iter(seqs.iter().enumerate().map(|(i, seq)| (seq.name.clone(), i)));
         if seq_by_name.len() != seqs.len() {
-            return Err(io::Error::new(io::ErrorKind::InvalidData,
-                "TwobitReader: duplicate sequence name detected."));
+            return Err(io::Error::new(InvalidData, "duplicate sequence name detected."));
         }
 
-        Ok(TwobitReader{mmap, seqs, seq_by_name})
+        Ok(TwobitReader { mmap, seqs, seq_by_name })
     }
-    
+
     /// Returns the number of sequence records in the file.
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.seqs.len()
     }
 
     /// Iterates over the [`TwobitSequence`] records, in the order they appear in the file.
-    /// 
-    /// # Examples
-    /// 
+    ///
+    /// # Example
+    ///
     /// ```no_run
     /// # use std::io;
     /// # use twobitreader::TwobitReader;
@@ -220,16 +223,16 @@ impl TwobitReader {
     /// }
     /// # Ok::<(), io::Error>(())
     /// ```
-    /// 
-    pub fn iter(&self) -> impl Iterator<Item=&TwobitSequence> + '_ {
+    ///
+    pub fn iter(&self) -> impl Iterator<Item = &TwobitSequence> + '_ {
         self.seqs.iter()
     }
 
     /// Iterates over the sequence record names, in the order they appear in the file.
-    pub fn iter_names(&self) -> impl Iterator<Item=&str> + '_ {
+    pub fn iter_names(&self) -> impl Iterator<Item = &str> + '_ {
         self.seqs.iter().map(|seq| seq.name.as_str())
     }
-    
+
     /// Returns a vector of sequence record names, in the order they appear in the file.
     pub fn names(&self) -> Vec<&str> {
         self.iter_names().collect()
@@ -241,9 +244,9 @@ impl TwobitReader {
     }
 
     /// Extracts range `start..end` (0-based, exclusive end) from the named sequence record.
-    /// 
-    /// # Examples
-    /// 
+    ///
+    /// # Example
+    ///
     /// ```no_run
     /// # use std::io;
     /// # use twobitreader::TwobitReader;
@@ -251,19 +254,19 @@ impl TwobitReader {
     /// let seq = tbr.get("chr2", 10000, 10010);     // "CGTATCCCAC"
     /// # Ok::<(), io::Error>(())
     /// ```
-    /// 
+    ///
     /// # Panics
     ///
     /// Panics if the sequence name was not found or the range was invalid.
-    /// 
+    ///
     pub fn get<N: AsRef<str>>(&self, name: N, start: usize, end: usize) -> String {
         self[name.as_ref()].get(start, end)
     }
 
     /// A version of [`get`](Self::get) where the result is stored in `dst`.
-    /// 
-    /// # Examples
-    /// 
+    ///
+    /// # Example
+    ///
     /// ```no_run
     /// # use std::io;
     /// # use twobitreader::TwobitReader;
@@ -272,23 +275,23 @@ impl TwobitReader {
     /// tbr.get_into("chr2", 10000, 10010, &mut dst);  // dst = "CGTATCCCAC"
     /// # Ok::<(), io::Error>(())
     /// ```
-    /// 
+    ///
     /// # Panics
     ///
     /// Panics if the sequence name was not found or the range was invalid.
-    /// 
+    ///
     pub fn get_into<N: AsRef<str>>(&self, name: N, start: usize, end: usize, dst: &mut String) {
         self[name.as_ref()].get_into(start, end, dst);
     }
 
-    /// Extracts a batch of sequences by calling [`get`](Self::get) on every 
+    /// Extracts a batch of sequences by calling [`get`](Self::get) on every
     /// `(name, start, end)` item returned by iterating over `iter`.
-    /// 
+    ///
     /// Iteration is parallel and potentially much faster than calling
     /// [`get`](Self::get) sequentially.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```no_run
     /// # use std::io;
     /// # use twobitreader::TwobitReader;
@@ -298,9 +301,9 @@ impl TwobitReader {
     /// let seqs = tbr.get_batch(args);  // ["CGTATC", "CCAC", ...]
     /// # Ok::<(), io::Error>(())
     /// ```
-    /// 
-    /// Internally this method is very similar to using `rayon` (see below), except a
-    /// global thread pool is not maintained.
+    ///
+    /// Internally, this method is very similar to using `rayon` in the following example:
+    ///
     /// ```no_run
     /// # use rayon::prelude::*;
     /// # use twobitreader::TwobitReader;
@@ -311,14 +314,17 @@ impl TwobitReader {
     ///     |(name, start, end)| tbr.get(name, start, end)
     /// ).collect::<Vec<_>>();  // Vec<String>
     /// ```
-    /// 
+    ///
+    /// The main difference is that `rayon` maintains a global thread pool that is slightly
+    /// faster to spin up, so prefer `rayon` if it is already a dependency for your project.
+    ///
     /// # Panics
     ///
     /// Panics if any sequence name was not found or if any range was invalid.
-    /// 
+    ///
     pub fn get_batch<N, I>(&self, iter: I) -> Vec<String>
     where
-        N: AsRef<str> + Sync + Send,   // N = String, &String, &str, etc...
+        N: AsRef<str> + Sync + Send, // N = String, &String, &str, etc...
         I: IntoIterator<Item = (N, usize, usize)>,
     {
         // Collect iter into a Vec. This makes sizing, preallocating, and chunking easy.
@@ -331,7 +337,7 @@ impl TwobitReader {
         //   that iterates sequentially, and might be slower than rayon as a result.
         let mut args = Vec::from_iter(iter.into_iter());
         let mut seqs = Vec::with_capacity(args.len());
-        
+
         // Chunk the input/output vecs.
         // Initially, the output seqs vec has size zero, and all its memory is uninitialized capacity.
         // The seq_chunks provides a view into that capacity, in the form of MaybeUninit<String> items.
@@ -368,7 +374,7 @@ impl TwobitReader {
         parallel_for(zip(arg_chunks, seq_chunks), |(args, seqs)| {
             for ((name, start, end), seq) in zip(args, seqs) {
                 seq.write(self.get(name.as_ref(), *start, *end));
-                unsafe { ptr::drop_in_place(name) };  // Drop here emulates an "Into" version of ChunksMut
+                unsafe { ptr::drop_in_place(name) }; // Drop here emulates an "Into" version of ChunksMut
             }
         });
 
@@ -380,12 +386,12 @@ impl TwobitReader {
 
         seqs
     }
-    
+
     /// A version of [`get`](Self::get) using 1-based inclusive ranges;
     /// see [genomic interval notations]((https://standage.github.io/on-genomic-interval-notation.html)).
-    /// 
-    /// # Examples
-    /// 
+    ///
+    /// # Example
+    ///
     /// ```no_run
     /// # use std::io;
     /// # use twobitreader::TwobitReader;
@@ -393,7 +399,7 @@ impl TwobitReader {
     /// let seq = tbr.get("chr2", 10001, 10010);     // "CGTATCCCAC"
     /// # Ok::<(), io::Error>(())
     /// ```
-    /// 
+    ///
     /// # Panics
     ///
     /// Panics if the sequence name was not found or the range was invalid.
@@ -404,9 +410,9 @@ impl TwobitReader {
 
     /// A version of [`get_into`](Self::get_into) using 1-based inclusive ranges;
     /// see [genomic interval notations]((https://standage.github.io/on-genomic-interval-notation.html)).
-    /// 
-    /// # Examples
-    /// 
+    ///
+    /// # Example
+    ///
     /// ```no_run
     /// # use std::io;
     /// # use twobitreader::TwobitReader;
@@ -415,20 +421,20 @@ impl TwobitReader {
     /// tbr.get_inclusive_into("chr2", 10001, 10010, &mut dst);  // dst = "CGTATCCCAC"
     /// # Ok::<(), io::Error>(())
     /// ```
-    /// 
+    ///
     /// # Panics
     ///
     /// Panics if the sequence name was not found or the range was invalid.
-    /// 
+    ///
     pub fn get_inclusive_into<N: AsRef<str>>(&self, name: N, start: usize, end: usize, dst: &mut String) {
         self[name.as_ref()].get_inclusive_into(start, end, dst);
     }
 
     /// A version of [`get_batch`](Self::get_batch) using 1-based inclusive ranges;
     /// see [genomic interval notations]((https://standage.github.io/on-genomic-interval-notation.html)).
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```no_run
     /// # use std::io;
     /// # use twobitreader::TwobitReader;
@@ -438,9 +444,9 @@ impl TwobitReader {
     /// let seqs = tbr.get_inclusive_batch(args);  // ["CGTATC", "CCAC", ...]
     /// # Ok::<(), io::Error>(())
     /// ```
-    /// 
-    /// Internally this method is very similar to using `rayon` (see below), except a
-    /// global thread pool is not maintained.
+    ///
+    /// Internally, this method is very similar to using `rayon` in the following example:
+    ///
     /// ```no_run
     /// # use rayon::prelude::*;
     /// # use twobitreader::TwobitReader;
@@ -451,26 +457,29 @@ impl TwobitReader {
     ///     |(name, start, end)| tbr.get_inclusive(name, start, end)
     /// ).collect::<Vec<_>>();  // Vec<String>
     /// ```
-    /// 
+    ///
+    /// The main difference is that `rayon` maintains a global thread pool that is slightly
+    /// faster to spin up, so prefer `rayon` if it is already a dependency for your project.
+    ///
     /// # Panics
     ///
     /// Panics if any sequence name was not found or if any range was invalid.
-    /// 
+    ///
     pub fn get_inclusive_batch<N, I>(&self, iter: I) -> Vec<String>
     where
-        N: AsRef<str> + Sync + Send,   // S = String, &String, &str, etc...
+        N: AsRef<str> + Sync + Send, // N = String, &String, &str, etc...
         I: IntoIterator<Item = (N, usize, usize)>,
     {
         self.get_batch(iter.into_iter().map(|(chrom, start, end)| {
             check_start_inclusive(start);
-            (chrom, start-1, end)
+            (chrom, start - 1, end)
         }))
     }
 
     /// Concatenates a batch of sequence ranges into a single string.
-    /// 
-    /// # Examples
-    /// 
+    ///
+    /// # Example
+    ///
     /// ```no_run
     /// # use std::io;
     /// # use twobitreader::TwobitReader;
@@ -479,11 +488,11 @@ impl TwobitReader {
     /// let seq = tbr.concat("chr2", ranges);           // "CGTATCCCAC"
     /// # Ok::<(), io::Error>(())
     /// ```
-    /// 
+    ///
     /// # Panics
-    /// 
+    ///
     /// Panics if the sequence name was not found or if any range was invalid.
-    /// 
+    ///
     pub fn concat<N, R>(&self, name: N, ranges: R) -> String
     where
         N: AsRef<str>,
@@ -495,9 +504,9 @@ impl TwobitReader {
 
     /// A version of [`concat`](Self::concat) using 1-based inclusive ranges;
     /// see [genomic interval notations]((https://standage.github.io/on-genomic-interval-notation.html)).
-    /// 
-    /// # Examples
-    /// 
+    ///
+    /// # Example
+    ///
     /// ```no_run
     /// # use std::io;
     /// # use twobitreader::TwobitReader;
@@ -506,11 +515,11 @@ impl TwobitReader {
     /// let seq = tbr.concat("chr2", ranges);           // "CGTATCCCAC"
     /// # Ok::<(), io::Error>(())
     /// ```
-    /// 
+    ///
     /// # Panics
-    /// 
+    ///
     /// Panics if the sequence name was not found or if any range was invalid.
-    /// 
+    ///
     pub fn concat_inclusive<N, R>(&self, name: N, ranges: R) -> String
     where
         N: AsRef<str>,
@@ -529,7 +538,9 @@ where
     type Output = TwobitSequence;
 
     /// Returns a reference to the [`TwobitSequence`] for the named sequence record.
-    /// 
+    ///
+    /// # Example
+    ///
     /// ```no_run
     /// # use std::io;
     /// # use twobitreader::TwobitReader;
@@ -538,23 +549,24 @@ where
     /// let seq = tbs.get(10000, 10010);  // "CGTATCCCAC"
     /// # Ok::<(), io::Error>(())
     /// ```
-    /// 
+    ///
     /// # Panics
     ///
     /// Panics if no sequence record has the given name.
-    /// 
+    ///
     fn index(&self, name: &Q) -> &TwobitSequence {
-        let index = *self.seq_by_name.get(name).expect("TwobitReader: sequence name not found");
+        let index = *self.seq_by_name.get(name).expect("sequence name not found");
         &self.seqs[index]
     }
 }
 
-impl Index<String> for TwobitReader
- {
-     type Output = TwobitSequence;
+impl Index<String> for TwobitReader {
+    type Output = TwobitSequence;
 
     /// Returns a reference to the [`TwobitSequence`] for the named sequence record.
-    /// 
+    ///
+    /// # Example
+    ///
     /// ```no_run
     /// # use std::io;
     /// # use twobitreader::TwobitReader;
@@ -563,15 +575,15 @@ impl Index<String> for TwobitReader
     /// let seq = tbs.get(10000, 10010);      // "CGTATCCCAC"
     /// # Ok::<(), io::Error>(())
     /// ```
-    /// 
+    ///
     /// # Panics
     ///
     /// Panics if no sequence record has the given name.
-    /// 
+    ///
     fn index(&self, name: String) -> &TwobitSequence {
-        let index = *self.seq_by_name.get(&name).expect("TwobitReader: sequence name not found");
-         &self.seqs[index]
-     }
+        let index = *self.seq_by_name.get(&name).expect("sequence name not found");
+        &self.seqs[index]
+    }
 }
 
 impl<'a> IntoIterator for &'a TwobitReader {
@@ -579,9 +591,9 @@ impl<'a> IntoIterator for &'a TwobitReader {
     type IntoIter = <&'a Vec<TwobitSequence> as IntoIterator>::IntoIter;
 
     /// Allows a TwobitReader reference to be turned into an iterator over its [`TwobitSequence`] records.
-    /// 
-    /// # Examples
-    /// 
+    ///
+    /// # Example
+    ///
     /// ```no_run
     /// # use std::io;
     /// # use twobitreader::TwobitReader;
@@ -597,13 +609,13 @@ impl<'a> IntoIterator for &'a TwobitReader {
 }
 
 impl TwobitSequence {
-
     /// Returns the name of this sequence record.
     pub fn name(&self) -> &str {
         self.name.as_str()
     }
 
     /// Returns the length of this sequence record, in nucleotides.
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.dna_len
     }
@@ -640,14 +652,14 @@ impl TwobitSequence {
     pub fn get_inclusive(&self, start: usize, end: usize) -> String {
         // Check valid start and then convert range to 0-based exclusive.
         check_start_inclusive(start);
-        self.get(start-1, end)
+        self.get(start - 1, end)
     }
 
     /// See [`TwobitReader::get_inclusive_into`].
     pub fn get_inclusive_into(&self, start: usize, end: usize, dst: &mut String) {
         // Check valid start and then convert range to 0-based exclusive.
         check_start_inclusive(start);
-        self.get_into(start-1, end, dst);
+        self.get_into(start - 1, end, dst);
     }
 
     /// See [`TwobitReader::concat`].
@@ -659,8 +671,13 @@ impl TwobitSequence {
         // Compute total length by summing individual interval lengths. Also check the ranges here,
         // since get_into_u8 does not produce user-friendly panic messages for invalid ranges.
         let ranges = ranges.into_iter();
-        let total_len = ranges.clone().map(|(start, end)| { self.check_range(start, end); end - start } ).sum();
-        
+        let total_len = ranges
+            .clone()
+            .map(|(start, end)| {
+                self.check_range(start, end);
+                end - start
+            })
+            .sum();
         let mut dst = String::new();
         if total_len > 0 {
             // Pre-size dst to the length needed. Safe because all decoded nucleotides are valid utf8.
@@ -672,7 +689,7 @@ impl TwobitSequence {
             let mut offset = 0;
             for (start, end) in ranges {
                 let len = end - start;
-                self.get_into_u8(start, &mut dst_vec[offset..offset+len]);
+                self.get_into_u8(start, &mut dst_vec[offset..offset + len]);
                 offset += len;
             }
         }
@@ -688,7 +705,7 @@ impl TwobitSequence {
         // Check each start, and convert range to 0-based exclusive.
         self.concat(ranges.into_iter().map(|(start, end)| {
             check_start_inclusive(start);
-            (start-1, end)
+            (start - 1, end)
         }))
     }
 
@@ -713,36 +730,42 @@ impl TwobitSequence {
     //  which would result in more confusion for the user than simply omitting the numbers.)
     #[inline]
     fn check_range(&self, start: usize, end: usize) {
-        if start > end { panic!("TwobitReader: invalid range (start > end)"); }
-        if end > self.dna_len { panic!("TwobitReader: invalid end (end > dna_len)"); }
+        if start > end {
+            panic!("invalid range (start > end)");
+        }
+        if end > self.dna_len {
+            panic!("invalid end (end > dna_len)");
+        }
     }
 }
 
 // Panics ifs start is not valid for an inclusive range
 #[inline]
 fn check_start_inclusive(start: usize) {
-    if start == 0 { panic!("TwobitReader: invalid start (start = 0)"); }
+    if start == 0 {
+        panic!("invalid start (start = 0)");
+    }
 }
 
 // Reads the header and sequence data from a .2bit file.
 // The resulting vec of TwobitSequences is intended to be assigned to the TwobitReader::seqs field.
 // Block intervals are accessed (paged in from disk), but the sequence data itself is not paged in.
-fn read_seqs(mmap: &Mmap, use_mask: bool) -> io::Result<Vec::<TwobitSequence>> {
-    // Twobit file signature
-    const SIGNATURE_LILEND: u32 = 0x1A412743;  // Twobit signature as little-endian u32 (native)
-    const SIGNATURE_BIGEND: u32 = 0x4327411A;  // Twobit signature as big-endian u32 (non-native)
+fn read_seqs(mmap: &Mmap, use_mask: bool) -> io::Result<Vec<TwobitSequence>> {
+    // Twobit file signature as little-endian (native) or big-endian (non-native)
+    const SIGNATURE_LILEND: u32 = 0x1A412743;
+    const SIGNATURE_BIGEND: u32 = 0x4327411A;
 
     // Start reading the file, using appropriate byte order
     let signature = Cursor::new(mmap).read_u32::<LittleEndian>()?;
-    return match signature {
+    match signature {
         SIGNATURE_LILEND => read_seqs_from_endian::<LittleEndian>(mmap, use_mask),
         SIGNATURE_BIGEND => read_seqs_from_endian::<BigEndian>(mmap, use_mask),
-        _ => Err(io::Error::new(io::ErrorKind::InvalidData, "Twobit file signature not found.")),
+        _ => Err(io::Error::new(InvalidData, "invalid file signature.")),
     }
 }
 
 // Implements read_seqs after the endian-ness of the file has been determined from the signature.
-fn read_seqs_from_endian<B: ByteOrder>(mmap: &Mmap, use_mask: bool) -> io::Result<Vec::<TwobitSequence>> {
+fn read_seqs_from_endian<B: ByteOrder>(mmap: &Mmap, use_mask: bool) -> io::Result<Vec<TwobitSequence>> {
     // Start cursor immediately after the signature field.
     let mut cursor = Cursor::new(mmap);
     cursor.set_position(size_of::<u32>() as u64);
@@ -750,14 +773,13 @@ fn read_seqs_from_endian<B: ByteOrder>(mmap: &Mmap, use_mask: bool) -> io::Resul
     // Check the file version
     let version = cursor.read_u32::<B>()?;
     if version != 0 {
-        return Err(io::Error::new(io::ErrorKind::InvalidData,
-                    "TwobitReader: file version not recognized."));
+        return Err(io::Error::new(InvalidData, "file version not recognized."));
     }
 
     // Read number of sequences and read past the reserved dword.
     let num_seqs = cursor.read_u32::<B>()? as usize;
     let _reserved = cursor.read_u32::<B>()?;
- 
+
     // Read each sequence header (name, data_offset).
     let mut seq_headers = Vec::with_capacity(num_seqs);
     for _ in 0..num_seqs {
@@ -769,16 +791,14 @@ fn read_seqs_from_endian<B: ByteOrder>(mmap: &Mmap, use_mask: bool) -> io::Resul
         // Convert the name bytes into a String object
         let name = match String::from_utf8(name_bytes) {
             Ok(name) => name,
-            Err(_) => return Err(io::Error::new(io::ErrorKind::InvalidData,
-                                 "TwobitReader: failed reading sequence name as utf8.")),
+            Err(_) => return Err(io::Error::new(InvalidData, "failed reading sequence name as utf8.")),
         };
 
-        // Get the offset of the data arrays for this sequence 
+        // Get the offset of the data arrays for this sequence
         let data_offset = cursor.read_u32::<B>()? as usize;
         let curr_offset = cursor.position() as usize;
         if data_offset <= curr_offset {
-            return Err(io::Error::new(io::ErrorKind::InvalidData,
-                       "TwobitReader: invalid data offset; file may be malformed."));
+            return Err(io::Error::new(InvalidData, "invalid data offset; file may be malformed."));
         }
 
         seq_headers.push((name, data_offset));
@@ -810,14 +830,13 @@ fn read_seqs_from_endian<B: ByteOrder>(mmap: &Mmap, use_mask: bool) -> io::Resul
         let dna_offset = cursor.position() as usize;
         let file_len = cursor.get_ref().len();
         if dna_offset + (dna_len + NUCS_PER_U8 - 1) / NUCS_PER_U8 > file_len {
-            return Err(io::Error::new(io::ErrorKind::UnexpectedEof,
-                "TwobitReader: dna bytes were truncated in file."));
+            return Err(io::Error::new(UnexpectedEof, "dna bytes were truncated in file."));
         }
         let dna_ptr = unsafe { cursor.get_ref().as_ptr().add(dna_offset) };
         let dna_bytes = (dna_len + NUCS_PER_U8 - 1) / NUCS_PER_U8;
 
         // Initialize the sequence.
-        *seq = Some(TwobitSequence{dna_ptr, dna_bytes, dna_len, nblocks, masks, name});
+        *seq = Some(TwobitSequence { dna_ptr, dna_bytes, dna_len, nblocks, masks, name });
         Ok(())
     })?;
 
@@ -849,41 +868,35 @@ fn read_blocks<B: ByteOrder>(cursor: &mut Cursor<&Mmap>, used: bool) -> io::Resu
         ends.resize(num_blocks, 0);
         cursor.read_u32_into::<B>(&mut ends)?;
         for (start, end) in zip(&starts, &mut ends) {
-            *end = *start + *end;
+            *end += *start;
         }
-
     } else {
         // Advance the cursor, without reading the data itself.
         let new_offset = cursor.position() as usize + 2 * num_blocks * size_of::<u32>();
         if new_offset > cursor.get_ref().len() {
-            return Err(io::Error::new(io::ErrorKind::UnexpectedEof,
-                "TwobitReader: block indices were truncated in file."));
+            return Err(io::Error::new(UnexpectedEof, "block indices truncated; file may be malformed."));
         }
         cursor.set_position(new_offset as u64);
     }
 
-    Ok(Blocks{starts, ends})
+    Ok(Blocks { starts, ends })
 }
 
 #[cfg(debug_assertions)]
 fn check_blocks(blocks: &Blocks, dna_len: usize) -> io::Result<()> {
     if !is_sorted(&blocks.starts) || !is_sorted(&blocks.ends) {
-        return Err(io::Error::new(io::ErrorKind::InvalidData,
-            "TwobitReader: block starts / ends were not strictly ascending; file may be malformed."));
+        return Err(io::Error::new(InvalidData, "block indices not sorted; file may be malformed."));
     }
 
     for (start, end) in zip(&blocks.starts, &blocks.ends) {
         if start >= end {
-            return Err(io::Error::new(io::ErrorKind::InvalidData,
-                "TwobitReader: expected all block start < block end; file may be malformed."));
+            return Err(io::Error::new(InvalidData, "block start >= end; file may be malformed."));
         }
         if *start as usize > dna_len {
-            return Err(io::Error::new(io::ErrorKind::InvalidData,
-                "TwobitReader: block start was beyond sequence length; file may be malformed."));
+            return Err(io::Error::new(InvalidData, "invalid block start; file may be malformed."));
         }
         if *end as usize > dna_len {
-            return Err(io::Error::new(io::ErrorKind::InvalidData,
-                "TwobitReader: block end was beyond sequence length; file may be malformed."));
+            return Err(io::Error::new(InvalidData, "invalid block end; file may be malformed."));
         }
     }
 
@@ -911,9 +924,11 @@ where
     let end = start + dst.len();
     for (block_start, block_end) in zip(&blocks.starts[i..], &blocks.ends[i..]) {
         let block_start = (*block_start as usize).max(start);
-        let block_end   = (*block_end as usize).min(end);
-        if block_start >= block_end { break; }
-        f(&mut dst[block_start-start..block_end-start]);
+        let block_end = (*block_end as usize).min(end);
+        if block_start >= block_end {
+            break;
+        }
+        f(&mut dst[block_start - start..block_end - start]);
     }
 }
 

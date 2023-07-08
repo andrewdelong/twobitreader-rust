@@ -1,10 +1,10 @@
 use twobitreader::TwobitReader;
 
 // Standard library
-use std::hint::black_box;
-use std::time::{Instant, Duration};
-use std::error::Error;
 use std::collections::HashMap;
+use std::error::Error;
+use std::hint::black_box;
+use std::time::{Duration, Instant};
 
 // Modules
 mod bench_util;
@@ -25,7 +25,7 @@ fn bench_hg38_exons(use_rayon: bool) -> Result<Duration, Box<dyn Error>> {
     let path = download_hg38()?;
     let exons = read_exons()?;
     let tic = Instant::now();
-    
+
     // Open file and collect strings into a vec, either in parallel or sequentially.
     let tbr = TwobitReader::open(path)?;
     let dst: Vec<_> = if use_rayon {

@@ -1,32 +1,30 @@
 // Standard library
+use std::error::Error;
 use std::fs::{File, OpenOptions};
 use std::hint::black_box;
 use std::io::{self, BufRead, Write};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use std::error::Error;
 
 // Dependencies
 use flate2::read::GzDecoder;
+use itertools::Itertools;
 use memmap2::MmapOptions;
 use reqwest::blocking::Client;
-use itertools::Itertools;
 
 // When a bench callback is invoked several times, only this many will
 // be printed to console describing the result (for legibility).
 const NUM_BENCH_TIMES_PRINTED: usize = 5;
 
 // Returns mean of a vector of elapsed time values.
-fn mean_time(x: &Vec<u128>) -> u128
-{
+fn mean_time(x: &Vec<u128>) -> u128 {
     assert!(!x.is_empty());
     let n = x.iter().copied().sum::<u128>();
     n / (x.len() as u128)
 }
- 
+
 // Returns median of a vector of elapsed time values.
-fn median_time(x: &Vec<u128>) -> u128
-{
+fn median_time(x: &Vec<u128>) -> u128 {
     assert!(!x.is_empty());
     let mut y = x.to_owned();
     y.sort();
@@ -35,18 +33,13 @@ fn median_time(x: &Vec<u128>) -> u128
 
 // Invokes f() num_iter times and prints the mean/median/min/max of the reported durations.
 // The time durations are reported as integers in the specified unit ("s", "ms", "us", "ns").
-pub fn bench(
-    name: &str,
-    f: fn() -> Result<Duration, Box<dyn Error>>,
-    num_iter: usize,
-    unit: &str)
-{
+pub fn bench(name: &str, f: fn() -> Result<Duration, Box<dyn Error>>, num_iter: usize, unit: &str) {
     // Convert duration to particular time unit as u128.
     let as_unit = match unit {
         "ns" => |d: Duration| d.as_nanos(),
         "us" => |d: Duration| d.as_micros(),
         "ms" => |d: Duration| d.as_millis(),
-        "s"  => |d: Duration| d.as_secs() as u128,
+        "s" => |d: Duration| d.as_secs().into(),
         _ => panic!("invalid unit '{unit}'"),
     };
 
@@ -85,7 +78,8 @@ pub fn bench(
 pub fn read_bed<P: AsRef<Path>>(path: P) -> Result<Vec<(String, usize, usize, String)>, Box<dyn Error>> {
     let reader = io::BufReader::new(GzDecoder::new(File::open(path)?));
     let mut result = Vec::new();
-    for line in reader.lines() {  // read_until('\n') faster, but negligible benefit for .gz files
+    // Using read_until('\n') faster than lines(), but negligible benefit for .gz files
+    for line in reader.lines() {
         let line = line?;
         let mut cols = line.split('\t');
         let chrom = cols.next().ok_or("expected >=4 tab-separated columns")?.to_string();
@@ -135,8 +129,8 @@ pub fn download_hg38() -> Result<PathBuf, Box<dyn Error>> {
         // Download binary contents of 2bit and write to a local file.
         let url = "https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/p13/hg38.p13.2bit";
         let client = Client::builder()
-                    .timeout(Duration::new(240, 0))
-                    .build()?;
+            .timeout(Duration::new(240, 0)) // Give 4 minutes to download ~800MB
+            .build()?;
         let data = client.get(url).send()?.error_for_status()?.bytes()?;
         let mut file = OpenOptions::new().write(true).create_new(true).open(path)?;
         file.write_all(&data)?;
