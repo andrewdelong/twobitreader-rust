@@ -10,10 +10,10 @@ jobs:
       - checkout
       - run:
           name: Print versions
-          command: rustc --version; rustup --version; ~/.cargo/bin/cargo --version
+          command: cargo --version; rustc --version; rustup --version;
       - run:
           name: Generate lockfile
-          command: ~/.cargo/bin/cargo generate-lockfile
+          command: cargo generate-lockfile
       - restore_cache:
           name: Restore cache
           keys:
@@ -21,25 +21,25 @@ jobs:
             - cargo-v0-linux-{{ arch }}
       - run:
           name: Build debug
-          command: ~/.cargo/bin/cargo build
+          command: cargo build
       - run:
           name: Run tests
-          command: ~/.cargo/bin/cargo test --verbose --no-fail-fast
+          command: cargo test --verbose --no-fail-fast
       - run:
           name: Build release
-          command: ~/.cargo/bin/cargo build --release
+          command: cargo build --release
       - run:
           name: Run benchmarks
-          command: ~/.cargo/bin/cargo bench
+          command: cargo bench
       - run:
           name: Run linter
-          command: ~/.cargo/bin/cargo clippy
+          command: cargo clippy
       - run:
           name: Run format check
-          command: ~/.cargo/bin/cargo fmt --check
+          command: cargo fmt --check
       - run:
           name: Build docs
-          command: RUSTDOCFLAGS="--html-in-header .cargo/header.html" ~/.cargo/bin/cargo doc --no-deps
+          command: RUSTDOCFLAGS="--html-in-header .cargo/header.html" cargo doc --no-deps
       - save_cache:
           name: Save cache
           key: cargo-v0-linux-{{ arch }}-{{ checksum "Cargo.lock" }}
@@ -63,43 +63,43 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Download rustup
+          command: curl -o rustup https://sh.rustup.rs
+      - run:
+          name: Install rust toolchain
+          command: bash rustup -y --verbose && source ~/.cargo/env
+      - run:
           name: Print versions
-          command: rustc --version; rustup --version; ~/.cargo/bin/cargo --version
+          command: cargo --version; rustc --version; rustup --version
       - run:
           name: Generate lockfile
-          command: ~/.cargo/bin/cargo generate-lockfile
+          command: cargo generate-lockfile
       - restore_cache:
           name: Restore cache
           keys:
             - cargo-v0-macos-{{ arch }}-{{ checksum "Cargo.lock" }}
             - cargo-v0-macos-{{ arch }}
       - run:
-          name: Download rustup
-          command: curl -o rustup https://sh.rustup.rs
-      - run:
-          name: Install rust
-          command: bash rustup -y
-      - run:
           name: Build debug
-          command: ~/.cargo/bin/cargo build
+          command: cargo build
       - run:
           name: Run tests
-          command: ~/.cargo/bin/cargo test --verbose --no-fail-fast
+          command: cargo test --verbose --no-fail-fast
       - run:
           name: Build release
-          command: ~/.cargo/bin/cargo build --release
+          command: cargo build --release
       - run:
           name: Run benchmarks
-          command: ~/.cargo/bin/cargo bench
+          command: cargo bench
       - run:
           name: Run linter
-          command: ~/.cargo/bin/cargo clippy
+          command: cargo clippy
       - run:
           name: Run format check
-          command: ~/.cargo/bin/cargo fmt --check
+          command: cargo fmt --check
       - run:
           name: Build docs
-          command: RUSTDOCFLAGS="--html-in-header .cargo/header.html" ~/.cargo/bin/cargo doc --no-deps
+          command: RUSTDOCFLAGS="--html-in-header .cargo/header.html" cargo doc --no-deps
       - save_cache:
           name: Save cache
           key: cargo-v0-macos-{{ arch }}-{{ checksum "Cargo.lock" }}
