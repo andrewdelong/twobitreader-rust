@@ -1,44 +1,108 @@
 version: 2.1
 
 jobs:
-  build-test-bench-linux:
+  build-linux-x86:
+    resource_class:
+      large
     docker:
       - image: cimg/rust:1.70
     steps:
       - checkout
       - run:
           name: Print versions
-          command: rustc --version; cargo --version; rustup --version
+          command: rustc --version; rustup --version; ~/.cargo/bin/cargo --version
       - run:
           name: Generate lockfile
-          command: cargo generate-lockfile
+          command: ~/.cargo/bin/cargo generate-lockfile
       - restore_cache:
           name: Restore cache
-          key: cargo-{{ arch }}-{{ checksum "Cargo.lock" }}
+          keys:
+            - cargo-v0-linux-{{ arch }}-{{ checksum "Cargo.lock" }}
+            - cargo-v0-linux-{{ arch }}
       - run:
           name: Build debug
-          command: cargo build
+          command: ~/.cargo/bin/cargo build
       - run:
           name: Run tests
-          command: cargo test
+          command: ~/.cargo/bin/cargo test --verbose --no-fail-fast
       - run:
           name: Build release
-          command: cargo build --release
+          command: ~/.cargo/bin/cargo build --release
       - run:
           name: Run benchmarks
-          command: cargo bench
+          command: ~/.cargo/bin/cargo bench
       - run:
           name: Run linter
-          command: cargo clippy
+          command: ~/.cargo/bin/cargo clippy
       - run:
           name: Run format check
-          command: cargo fmt --check
+          command: ~/.cargo/bin/cargo fmt --check
       - run:
-          name: Generate docs
-          command: cargo doc; RUSTDOCFLAGS="--html-in-header .cargo/header.html" cargo doc --no-deps
+          name: Build docs
+          command: RUSTDOCFLAGS="--html-in-header .cargo/header.html" ~/.cargo/bin/cargo doc --no-deps
       - save_cache:
           name: Save cache
-          key: cargo-{{ arch }}-{{ checksum "Cargo.lock" }}
+          key: cargo-v0-linux-{{ arch }}-{{ checksum "Cargo.lock" }}
+          paths:
+            - ~/.cargo/registry
+            - target/debug/.fingerprint
+            - target/debug/build
+            - target/debug/deps
+            - target/release/.fingerprint
+            - target/release/build
+            - target/release/deps
+            - target/.rustdoc_fingerprint.json
+            - target/doc
+            - tests/assets/hg38.p13.2bit
+
+  build-macos-x86:
+    resource_class:
+      macos.x86.medium.gen2
+    macos:
+      xcode: 14.3.1
+    steps:
+      - checkout
+      - run:
+          name: Print versions
+          command: rustc --version; rustup --version; ~/.cargo/bin/cargo --version
+      - run:
+          name: Generate lockfile
+          command: ~/.cargo/bin/cargo generate-lockfile
+      - restore_cache:
+          name: Restore cache
+          keys:
+            - cargo-v0-macos-{{ arch }}-{{ checksum "Cargo.lock" }}
+            - cargo-v0-macos-{{ arch }}
+      - run:
+          name: Download rustup
+          command: curl -o rustup https://sh.rustup.rs
+      - run:
+          name: Install rust
+          command: bash rustup -y
+      - run:
+          name: Build debug
+          command: ~/.cargo/bin/cargo build
+      - run:
+          name: Run tests
+          command: ~/.cargo/bin/cargo test --verbose --no-fail-fast
+      - run:
+          name: Build release
+          command: ~/.cargo/bin/cargo build --release
+      - run:
+          name: Run benchmarks
+          command: ~/.cargo/bin/cargo bench
+      - run:
+          name: Run linter
+          command: ~/.cargo/bin/cargo clippy
+      - run:
+          name: Run format check
+          command: ~/.cargo/bin/cargo fmt --check
+      - run:
+          name: Build docs
+          command: RUSTDOCFLAGS="--html-in-header .cargo/header.html" ~/.cargo/bin/cargo doc --no-deps
+      - save_cache:
+          name: Save cache
+          key: cargo-v0-macos-{{ arch }}-{{ checksum "Cargo.lock" }}
           paths:
             - ~/.cargo/registry
             - target/debug/.fingerprint
@@ -52,6 +116,7 @@ jobs:
             - tests/assets/hg38.p13.2bit
 
 workflows:
-  build-test-bench:
+  build-all:
     jobs:
-      - build-test-bench-linux
+      - build-linux-x86
+      - build-macos-x86
