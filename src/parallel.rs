@@ -93,18 +93,22 @@ where
 
     // Call consume_iter once from current thread (i.e., reuse it as a worker), then join
     // and collect all Result values. Exit with 'panic code' (101) if any thread panicked.
-    let results = once(consume_iter(mutex))
-        .chain(join_handles.into_iter().map(|h| {
-            match h.join() {
-                Ok(result) => result,
-                Err(err) => panic::resume_unwind(err), // Propagate panic from thread
-            }
-        }))
+    let join_results = once(Ok(consume_iter(mutex)))
+        .chain(join_handles.into_iter().map(|join_handle| join_handle.join()))
         .collect::<Vec<_>>();
 
-    // If any worker returned an error, return the first error encountered. Otherwise OK.
-    match results.into_iter().find(|r| r.is_err()) {
-        Some(error) => error,
+    // Check that all thread joins succeeded, and extract the worker results (of consume_iter).
+    let worker_results = join_results
+        .into_iter()
+        .map(|join_result| match join_result {
+            Ok(worker_result) => worker_result,
+            Err(panic_error) => panic::resume_unwind(panic_error),
+        })
+        .collect::<Vec<_>>();
+
+    // Check that all workers succeeded. If not, return the first error encountered.
+    match worker_results.into_iter().find_map(|r| r.err()) {
+        Some(worker_error) => Err(worker_error),
         None => Ok(()),
     }
 }
