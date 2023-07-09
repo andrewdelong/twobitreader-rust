@@ -31,10 +31,10 @@ jobs:
           name: Install linter and format checker
           command: rustup component add clippy; rustup component add rustfmt
       - run:
-          name: Run lint
+          name: Run linter
           command: cargo clippy
       - run:
-          name: Check formatting
+          name: Run format check
           command: cargo fmt --check
       - run:
           name: Generate docs
