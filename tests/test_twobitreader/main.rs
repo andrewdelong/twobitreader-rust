@@ -198,7 +198,7 @@ fn test_get_invalid_name_panic() {
 #[should_panic(expected = "sequence name not found")]
 fn test_get_batch_invalid_name_panic() {
     // Create large batch to spawn additional threads, to test that panic is propagated.
-    let args = repeat(("seq_xy", 0, 10)).take(1000).chain(once(("seq_XY", 0, 10)));
+    let args = once(("seq_XY", 0, 10)).chain(repeat(("seq_xy", 0, 10)).take(1000));
     open_tiny().get_batch(args);
 }
 
@@ -206,7 +206,7 @@ fn test_get_batch_invalid_name_panic() {
 #[should_panic(expected = "invalid end")]
 fn test_get_batch_invalid_end_panic() {
     // Create large batch to spawn additional threads, to test that panic is propagated.
-    let args = repeat(("seq_xy", 0, 10)).take(1000).chain(once(("seq_xy", 0, 61)));
+    let args = once(("seq_xy", 0, 61)).chain(repeat(("seq_xy", 0, 10)).take(1000));
     open_tiny().get_batch(args);
 }
 
@@ -214,7 +214,7 @@ fn test_get_batch_invalid_end_panic() {
 #[should_panic(expected = "invalid start")]
 fn test_get_inclusive_batch_invalid_start_panic() {
     // Create large batch to spawn additional threads, to test that panic is propagated.
-    let args = repeat(("seq_xy", 1, 10)).take(1000).chain(once(("seq_xy", 0, 10)));
+    let args = once(("seq_xy", 0, 10)).chain(repeat(("seq_xy", 1, 10)).take(1000));
     open_tiny().get_inclusive_batch(args);
 }
 
@@ -228,6 +228,18 @@ fn test_concat_invalid_name_panic() {
 #[should_panic(expected = "invalid end")]
 fn test_concat_invalid_end_panic() {
     open_tiny().concat("seq_xy", [(0, 1), (2, 61)]);
+}
+
+#[test]
+#[should_panic(expected = "sequence name not found")]
+fn test_concat_inclusive_invalid_name_panic() {
+    open_tiny().concat_inclusive("seq_XY", [(1, 1), (3, 3)]);
+}
+
+#[test]
+#[should_panic(expected = "invalid end")]
+fn test_concat_inclusive_invalid_end_panic() {
+    open_tiny().concat("seq_xy", [(1, 1), (3, 61)]);
 }
 
 #[test]

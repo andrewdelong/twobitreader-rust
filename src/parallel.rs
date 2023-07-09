@@ -1,5 +1,4 @@
 // Standard library
-use std::iter::once;
 use std::mem::transmute;
 use std::panic;
 use std::sync::Arc;
@@ -7,7 +6,7 @@ use std::sync::Mutex;
 use std::thread;
 
 // Stack size for spawned threads.
-// Small stack suffices for usage in this crate, but not for general use.
+// Modest stack suffices for usage in this crate, but not for general use.
 const WORKER_STACK_SIZE: usize = 32 * 1024;
 
 // Calls a closure on each element of an iterator, in parallel.
@@ -37,10 +36,10 @@ where
 
 // Calls a closure on each element of an iterator, in parallel.
 //
-// If any invocation of f returns an error, the result of this function
+// If any invocation of f() returns an error, the result of this function
 // will contain the first error detected.
 //
-// If any invocation of f panics, the calling thread will also panic.
+// If any invocation of f() panics, the calling thread will also panic.
 //
 // This function is designed for use within this create, and has not been
 // designed or tested for more general use cases. The goal is simple
@@ -74,7 +73,7 @@ where
     // Spawn additional threads to consume items in parallel.
     let num_threads = num_cpus::get().min(iter.len()).max(1);
     let mutex = Arc::new(Mutex::new(iter));
-    let join_handles = (0..num_threads - 1)
+    let join_handles = (0..num_threads)
         .map(|_| {
             // Clone reference to iter mutex
             let mutex = Arc::clone(&mutex);
@@ -91,10 +90,8 @@ where
         })
         .collect::<Vec<_>>();
 
-    // Call consume_iter once (use this thread as a worker), then collect all thread join results.
-    let join_results = once(Ok(consume_iter(mutex)))
-        .chain(join_handles.into_iter().map(|join_handle| join_handle.join()))
-        .collect::<Vec<_>>();
+    // Collect all thread join results.
+    let join_results = join_handles.into_iter().map(|join_handle| join_handle.join()).collect::<Vec<_>>();
 
     // Check that all thread joins succeeded. If not, propagate the first panic.
     if join_results.iter().any(|r| r.is_err()) {
