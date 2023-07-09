@@ -28,9 +28,6 @@ jobs:
           name: Run benchmarks
           command: cargo bench
       - run:
-          name: Install linter and format checker
-          command: rustup component add clippy; rustup component add rustfmt
-      - run:
           name: Run linter
           command: cargo clippy
       - run:
@@ -43,7 +40,7 @@ jobs:
           name: Save cache
           key: cargo-{{ arch }}-{{ checksum "Cargo.lock" }}
           paths:
-            - ~/.cargo
+            - ~/.cargo/registry
             - target/debug/.fingerprint
             - target/debug/build
             - target/debug/deps
