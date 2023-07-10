@@ -1,12 +1,12 @@
 // Standard library
 use std::error::Error;
-use std::fs::{File, OpenOptions};
-use std::io::{self, BufRead, Write};
+use std::fs::File;
+use std::io::{self, BufRead};
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::process::Command;
 
 // Dependencies
-use reqwest::blocking::Client;
+//use reqwest::blocking::Client;
 
 // Reads a FASTA file where description lines all adhere to ">chrom:start-end" format.
 // The returned Vec has structure:
@@ -41,14 +41,14 @@ pub fn read_test_fasta<P: AsRef<Path>>(path: P) -> Result<Vec<(String, usize, us
 pub fn download_hg38() -> Result<PathBuf, Box<dyn Error>> {
     let path = Path::new("tests/assets/hg38.p13.2bit");
     if !path.exists() {
-        // Download binary contents of 2bit and write to a local file.
         let url = "https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/p13/hg38.p13.2bit";
-        let client = Client::builder()
-            .timeout(Duration::new(240, 0)) // Give 4 minutes to download ~800MB
-            .build()?;
-        let data = client.get(url).send()?.error_for_status()?.bytes()?;
-        let mut file = OpenOptions::new().write(true).create_new(true).open(path)?;
-        file.write_all(&data)?;
+        let status_code = Command::new("curl")
+            .args(["-o", path.to_str().unwrap(), url])
+            .status()?
+            .code().expect("Curl failed to terminate successfully");
+        if status_code != 0 {
+            panic!("Curl failed with exit code {status_code}");
+        }
     }
     Ok(path.to_path_buf())
 }

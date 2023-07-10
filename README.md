@@ -97,7 +97,7 @@ The table below shows running times in milliseconds. Experimental details are `d
 <tr>
     <td style="font-weight:bold;">twobitreader (rust)</td>
     <td style="border:none; padding:4pt;"></td>
-    <td style="text-align:right">88</td>
+    <td style="text-align:right">92</td>
     <td style="text-align:right">160</td>
     <th style="border:none; padding:4pt;"></th>
     <td style="text-align:right">12</td>
