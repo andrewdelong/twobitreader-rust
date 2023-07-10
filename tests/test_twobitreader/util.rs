@@ -45,7 +45,8 @@ pub fn download_hg38() -> Result<PathBuf, Box<dyn Error>> {
         let status_code = Command::new("curl")
             .args(["-o", path.to_str().unwrap(), url])
             .status()?
-            .code().expect("Curl failed to terminate successfully");
+            .code()
+            .expect("Curl failed to terminate successfully");
         if status_code != 0 {
             panic!("Curl failed with exit code {status_code}");
         }
