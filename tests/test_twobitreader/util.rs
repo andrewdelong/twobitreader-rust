@@ -5,9 +5,6 @@ use std::io::{self, BufRead};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-// Dependencies
-//use reqwest::blocking::Client;
-
 // Reads a FASTA file where description lines all adhere to ">chrom:start-end" format.
 // The returned Vec has structure:
 //   Vec<(chrom, start, end, seq)>

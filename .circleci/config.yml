@@ -161,7 +161,7 @@ jobs:
           command: ~/.cargo/bin/cargo fmt --check
       - run:
           name: Build docs
-          command: bash RUSTDOCFLAGS="--html-in-header .cargo/header.html" ~/.cargo/bin/cargo doc --no-deps
+          command: $env:RUSTDOCFLAGS="--html-in-header .cargo/header.html"; ~/.cargo/bin/cargo doc --no-deps
       - save_cache:
           name: Save cache
           key: cargo-v0-windows-{{ arch }}-{{ checksum "Cargo.lock" }}
