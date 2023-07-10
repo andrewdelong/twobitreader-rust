@@ -119,7 +119,10 @@ jobs:
             - tests/assets/hg38.p13.2bit
 
   build-windows-x86:
-    executor: windows/default
+    resource_class:
+      large
+    executor:
+      windows/default
     steps:
       - checkout
       - run:
