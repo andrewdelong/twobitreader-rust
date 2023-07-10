@@ -42,7 +42,7 @@ jobs:
           command: cargo fmt --check
       - run:
           name: Build docs
-          command: RUSTDOCFLAGS="--html-in-header .cargo/header.html" cargo doc --no-deps
+          command: RUSTDOCFLAGS="--html-in-header doc/header.html" cargo doc --no-deps
       - save_cache:
           name: Save cache
           key: cargo-v0-linux-{{ arch }}-{{ checksum "Cargo.lock" }}
@@ -102,7 +102,7 @@ jobs:
           command: cargo fmt --check
       - run:
           name: Build docs
-          command: RUSTDOCFLAGS="--html-in-header .cargo/header.html" cargo doc --no-deps
+          command: RUSTDOCFLAGS="--html-in-header doc/header.html" cargo doc --no-deps
       - save_cache:
           name: Save cache
           key: cargo-v0-macos-{{ arch }}-{{ checksum "Cargo.lock" }}
@@ -161,7 +161,7 @@ jobs:
           command: ~/.cargo/bin/cargo fmt --check
       - run:
           name: Build docs
-          command: $env:RUSTDOCFLAGS="--html-in-header .cargo/header.html"; ~/.cargo/bin/cargo doc --no-deps
+          command: $env:RUSTDOCFLAGS="--html-in-header doc/header.html"; ~/.cargo/bin/cargo doc --no-deps
       - save_cache:
           name: Save cache
           key: cargo-v0-windows-{{ arch }}-{{ checksum "Cargo.lock" }}
