@@ -29,9 +29,9 @@ fn bench_hg38_exons(use_rayon: bool) -> Result<Duration, Box<dyn Error>> {
     // Open file and collect strings into a vec, either in parallel or sequentially.
     let tbr = TwobitReader::open(path)?;
     let dst: Vec<_> = if use_rayon {
-        exons.into_par_iter().map(|(chrom, start, end)| tbr.get(chrom, start, end)).collect()
+        exons.par_iter().map(|(chrom, start, end)| tbr.get(chrom, *start, *end)).collect()
     } else {
-        exons.into_iter().map(|(chrom, start, end)| tbr.get(chrom, start, end)).collect()
+        exons.iter().map(|(chrom, start, end)| tbr.get(chrom, *start, *end)).collect()
     };
 
     let duration = tic.elapsed();
@@ -47,7 +47,7 @@ fn bench_hg38_exons_batch() -> Result<Duration, Box<dyn Error>> {
 
     // Open file and collect strings into a vec in parallel.
     let tbr = TwobitReader::open(path)?;
-    let dst = tbr.get_batch(exons);
+    let dst = tbr.get_batch(exons.iter().map(|(chrom, start, end)| (chrom.as_str(), *start, *end)));
 
     let duration = tic.elapsed();
     black_box(dst);
@@ -64,9 +64,9 @@ fn bench_hg38_transcripts(use_rayon: bool) -> Result<Duration, Box<dyn Error>> {
     // Open file and collect transcript strings into a hashmap, either in parallel or sequentially.
     let tbr = TwobitReader::open(path)?;
     let dst: HashMap<_, _> = if use_rayon {
-        transcripts.into_par_iter().map(|(id, chrom, exons)| (id, tbr.concat(chrom, exons))).collect()
+        transcripts.par_iter().map(|(id, chrom, exons)| (id, tbr.concat(chrom, exons.iter().copied()))).collect()
     } else {
-        transcripts.into_iter().map(|(id, chrom, exons)| (id, tbr.concat(chrom, exons))).collect()
+        transcripts.iter().map(|(id, chrom, exons)| (id, tbr.concat(chrom, exons.iter().copied()))).collect()
     };
 
     let duration = tic.elapsed();

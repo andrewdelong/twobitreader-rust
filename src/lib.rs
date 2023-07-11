@@ -4,9 +4,11 @@
 //! The motivation for this crate is speed.
 //! Extracting sequences is 1.5-30x faster than the best alternative, depending on use case.
 //!
-//! Tested on Linux, Mac, and Windows.
-//!
-//! [![CircleCI](https://dl.circleci.com/status-badge/img/gh/andrewdelong/twobitreader-rust/tree/main.svg?style=shield&circle-token=866d66445adcd45b6a135f83a6211987fa1c4cf3)](https://dl.circleci.com/status-badge/redirect/gh/andrewdelong/twobitreader-rust/tree/main)
+//! Tested on Linux, Mac, and Windows:
+//! <a href="https://dl.circleci.com/status-badge/redirect/gh/andrewdelong/twobitreader-rust/tree/main">
+//!   <img style="vertical-align:middle; margin-top:-2px;" 
+//!        src="https://dl.circleci.com/status-badge/img/gh/andrewdelong/twobitreader-rust/tree/main.svg?style=shield&circle-token=866d66445adcd45b6a135f83a6211987fa1c4cf3"/>
+//! </a>
 //!
 //! # Examples
 //!

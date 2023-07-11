@@ -6,9 +6,11 @@ This crate provides fast DNA sequence extraction from 2bit files, a
 The motivation for this crate is speed.
 Extracting sequences is 1.5-30x faster than the best alternative, depending on use case.
 
-Tested on Linux, Mac, and Windows.
-
-[![CircleCI](https://dl.circleci.com/status-badge/img/gh/andrewdelong/twobitreader-rust/tree/main.svg?style=shield&circle-token=866d66445adcd45b6a135f83a6211987fa1c4cf3)](https://dl.circleci.com/status-badge/redirect/gh/andrewdelong/twobitreader-rust/tree/main)
+Tested on Linux, Mac, and Windows:
+<a href="https://dl.circleci.com/status-badge/redirect/gh/andrewdelong/twobitreader-rust/tree/main">
+  <img style="vertical-align:middle; margin-top:-2px;"
+       src="https://dl.circleci.com/status-badge/img/gh/andrewdelong/twobitreader-rust/tree/main.svg?style=shield&circle-token=866d66445adcd45b6a135f83a6211987fa1c4cf3"/>
+</a>
 
 ## Examples
 
@@ -101,11 +103,11 @@ The table below shows running times in milliseconds. Experimental details are `d
 <tr>
     <td style="font-weight:bold;">twobitreader (rust)</td>
     <td style="border:none; padding:4pt;"></td>
-    <td style="text-align:right">92</td>
-    <td style="text-align:right">160</td>
+    <td style="text-align:right">88</td>
+    <td style="text-align:right">150</td>
     <th style="border:none; padding:4pt;"></th>
     <td style="text-align:right">12</td>
-    <td style="text-align:right">26</td>
+    <td style="text-align:right">20</td>
     <td style="border:none; padding:4pt;"></td>
     <td style="text-align:right">2,200</td>
     <td style="text-align:right">2,600</td>
