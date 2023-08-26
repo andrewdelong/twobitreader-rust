@@ -5,6 +5,7 @@ use std::hint::black_box;
 use std::io::{self, BufRead};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::thread::sleep;
 use std::time::Duration;
 
 // Dependencies
@@ -46,6 +47,11 @@ pub fn bench(name: &str, f: fn() -> Result<Duration, Box<dyn Error>>, num_iter: 
     // Invoke the callback num_iter times, recording the reported duration each time.
     let mut times = Vec::with_capacity(num_iter);
     for _ in 0..num_iter {
+        // Sleep 0.1 seconds prior to each run to reduce variance between invocations
+        // (Allows OS to quiet down any console output, etc.)
+        sleep(Duration::new(0, 100_000_000));
+
+        // Run the function and record its reported wall-clock time.
         let duration = f().unwrap();
         times.push(as_unit(duration));
     }
@@ -117,7 +123,7 @@ pub fn load_into_page_cache<P: AsRef<Path>>(path: P) -> io::Result<()> {
     let mmap = unsafe { MmapOptions::new().map(&file)? };
     // Access all pages by computing an arbitrary value.
     // (Avoid mmap madvise because it's not portable.)
-    black_box(mmap.iter().max());
+    black_box(mmap.iter().skip(256).max());
     Ok(())
 }
 

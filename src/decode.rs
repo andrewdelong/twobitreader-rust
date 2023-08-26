@@ -5,10 +5,10 @@ use std::iter::zip;
 use seq_macro::seq;
 
 // Constants related to decoding.
-pub const BITS_PER_U8: usize = 8;
-pub const BITS_PER_U32: usize = 32;
-pub const BITS_PER_NUC: usize = 2;
-pub const NUCS_PER_U8: usize = BITS_PER_U8 / BITS_PER_NUC;
+pub(crate) const BITS_PER_U8: usize = 8;
+pub(crate) const BITS_PER_U32: usize = 32;
+pub(crate) const BITS_PER_NUC: usize = 2;
+pub(crate) const NUCS_PER_U8: usize = BITS_PER_U8 / BITS_PER_NUC;
 
 // Lookup table to decode two bits into an ASCII character: T=00 C=01 A=10 G=11.
 const DECODE_U2: [u8; 4] = [b'T', b'C', b'A', b'G'];
@@ -41,7 +41,7 @@ const DECODE_U8: [u32; 256] = seq!(i in 0..256 {[#(
 
 // Decode 2-bit packed dna, starting at the given position.
 // The contents of dst are replaced by ASCII nucleotides.
-pub fn decode(start: usize, dna: &[u8], dst: &mut [u8]) {
+pub(crate) fn decode(start: usize, dna: &[u8], dst: &mut [u8]) {
     // Transmute dst into a u32 slice (quads), plus any leading/trailing u8s needed to align it.
     // This allows the main quad-based decoding loop to perform correctly-aligned writes,
     // which is important for speed and for portability.

@@ -4,7 +4,7 @@ use twobitreader::TwobitReader;
 use std::collections::HashMap;
 use std::error::Error;
 use std::io;
-use std::iter::{once, repeat, zip};
+use std::iter::zip;
 use std::path::Path;
 
 // Modules
@@ -55,14 +55,11 @@ fn test_tiny<P: AsRef<Path>>(path: P) -> Result<(), Box<dyn Error>> {
     // Test name lookups (&str, String, &String) and sequence len
     for name in expect_names.iter().copied() {
         assert!(tbr.contains_name(name));
-        assert_eq!(tbr[name].name(), name);
-        assert_eq!(tbr[name.to_string()].name(), name);
-        assert_eq!(tbr[&name.to_string()].name(), name);
     }
 
     // Test sequence len
     for name in expect_names.iter().copied() {
-        assert_eq!(tbr[name].len(), expect_twobit[name].len());
+        assert_eq!(tbr.seq_len(name), expect_twobit[name].len());
     }
 
     // Test contains_name negatives (&str, String, &String)
@@ -72,10 +69,7 @@ fn test_tiny<P: AsRef<Path>>(path: P) -> Result<(), Box<dyn Error>> {
     assert!(!tbr.contains_name(&"no_such_name".to_string()));
 
     // Test iteration over &TwobitReader
-    assert_eq!(tbr.len(), expect_twobit.len());
-    for tbs in &tbr {
-        assert!(expect_twobit.contains_key(tbs.name()));
-    }
+    assert_eq!(tbr.num_seqs(), expect_twobit.len());
 
     // Iterator over all possible subsequences
     let windows = expect_twobit.iter().flat_map(|(name, seq)| {
@@ -98,27 +92,7 @@ fn test_tiny<P: AsRef<Path>>(path: P) -> Result<(), Box<dyn Error>> {
         assert_eq!(expect_seq, { let mut dst = String::new(); tbr.get_inclusive_into(name, start + 1, end, &mut dst); dst });
         assert_eq!(expect_seq, { let mut dst = String::from("abc"); tbr.get_into(name, start, end, &mut dst); dst });
         assert_eq!(expect_seq, { let mut dst = String::from("abc"); tbr.get_inclusive_into(name, start + 1, end, &mut dst); dst });
-
-        // TwobitSequence get methods
-        let tbs = &tbr[name];
-        assert_eq!(expect_seq, tbs.get(start, end));
-        assert_eq!(expect_seq, tbs.get_inclusive(start + 1, end));
-        assert_eq!(expect_seq, { let mut dst = String::new(); tbs.get_into(start, end, &mut dst); dst });
-        assert_eq!(expect_seq, { let mut dst = String::new(); tbs.get_inclusive_into(start + 1, end, &mut dst); dst });
-        assert_eq!(expect_seq, { let mut dst = String::from("abc"); tbs.get_into(start, end, &mut dst); dst });
-        assert_eq!(expect_seq, { let mut dst = String::from("abc"); tbs.get_inclusive_into(start + 1, end, &mut dst); dst });
     }
-
-    // Test get_batch on all sub-windows at once (from iterator, from collection)
-    let to_inclusive = |(name, start, end)| (name, start + 1, end);
-    assert_eq!(expect_batch, tbr.get_batch(windows.clone()));
-    assert_eq!(expect_batch, tbr.get_batch(windows.clone().collect::<Vec<_>>()));
-    assert_eq!(expect_batch, tbr.get_inclusive_batch(windows.clone().map(to_inclusive)));
-    assert_eq!(expect_batch, tbr.get_inclusive_batch(windows.clone().map(to_inclusive).collect::<Vec<_>>()));
-
-    // Test get_batch on empty
-    assert_eq!(tbr.get_batch(Vec::<(String, usize, usize)>::new()), Vec::<String>::new());
-    assert_eq!(tbr.get_inclusive_batch(Vec::<(String, usize, usize)>::new()), Vec::<String>::new());
 
     // Test concat with zip (from iterator, from collection)
     let expect = "aACNNNcaGCATTGA";
@@ -127,24 +101,16 @@ fn test_tiny<P: AsRef<Path>>(path: P) -> Result<(), Box<dyn Error>> {
     let inclusive_starts = starts.iter().map(|start| start + 1);
     assert_eq!(expect, tbr.concat("seq_xy", zip(starts, ends)));
     assert_eq!(expect, tbr.concat("seq_xy", zip(starts, ends).collect::<Vec<_>>()));
-    assert_eq!(expect, tbr["seq_xy"].concat(zip(starts, ends)));
-    assert_eq!(expect, tbr["seq_xy"].concat(zip(starts, ends).collect::<Vec<_>>()));
     assert_eq!(expect, tbr.concat_inclusive("seq_xy", zip(inclusive_starts.clone(), ends)));
     assert_eq!(expect, tbr.concat_inclusive("seq_xy", zip(inclusive_starts.clone(), ends).collect::<Vec<_>>()));
-    assert_eq!(expect, tbr["seq_xy"].concat_inclusive(zip(inclusive_starts.clone(), ends)));
-    assert_eq!(expect, tbr["seq_xy"].concat_inclusive(zip(inclusive_starts.clone(), ends).collect::<Vec<_>>()));
 
     // Test concat with array of (start, end) pairs (from array, from iterator, from collection)
     let ranges = [(0, 0), (10, 11), (20, 22), (30, 33), (40, 44), (50, 55)];
     assert_eq!(expect, tbr.concat("seq_xy", ranges));
     assert_eq!(expect, tbr.concat("seq_xy", ranges.into_iter()));
     assert_eq!(expect, tbr.concat("seq_xy", Vec::from(ranges)));
-    assert_eq!(expect, tbr["seq_xy"].concat(ranges));
-    assert_eq!(expect, tbr["seq_xy"].concat(ranges.into_iter()));
-    assert_eq!(expect, tbr["seq_xy"].concat(Vec::from(ranges)));
 
     // Test concat with total_len=0, and different name types (&str, String, &String)
-    assert_eq!(tbr["seq_xy"].concat(zip(starts, starts)), "");
     assert_eq!(tbr.concat("seq_xy", zip(starts, starts)), "");
     assert_eq!(tbr.concat("seq_xy".to_string(), zip(starts, starts)), "");
     assert_eq!(tbr.concat(&"seq_xy".to_string(), zip(starts, starts)), "");
@@ -184,38 +150,14 @@ fn test_get_invalid_end_panic() {
 
 #[test]
 #[should_panic(expected = "sequence name not found")]
-fn test_index_invalid_name_panic() {
-    let _tbs = &open_tiny()["seq_XY"];
+fn test_seq_len_invalid_name_panic() {
+    open_tiny().seq_len("seq_XY");
 }
 
 #[test]
 #[should_panic(expected = "sequence name not found")]
 fn test_get_invalid_name_panic() {
     open_tiny().get("seq_XY", 0, 10);
-}
-
-#[test]
-#[should_panic(expected = "sequence name not found")]
-fn test_get_batch_invalid_name_panic() {
-    // Create large batch to spawn additional threads, to test that panic is propagated.
-    let args = once(("seq_XY", 0, 10)).chain(repeat(("seq_xy", 0, 10)).take(1000));
-    open_tiny().get_batch(args);
-}
-
-#[test]
-#[should_panic(expected = "invalid end")]
-fn test_get_batch_invalid_end_panic() {
-    // Create large batch to spawn additional threads, to test that panic is propagated.
-    let args = once(("seq_xy", 0, 61)).chain(repeat(("seq_xy", 0, 10)).take(1000));
-    open_tiny().get_batch(args);
-}
-
-#[test]
-#[should_panic(expected = "invalid start")]
-fn test_get_inclusive_batch_invalid_start_panic() {
-    // Create large batch to spawn additional threads, to test that panic is propagated.
-    let args = once(("seq_xy", 0, 10)).chain(repeat(("seq_xy", 1, 10)).take(1000));
-    open_tiny().get_inclusive_batch(args);
 }
 
 #[test]

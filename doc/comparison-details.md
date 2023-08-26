@@ -27,7 +27,7 @@
 * Times are average of 3 or 5 runs, rounded to two digits.
 * Time for opening the `.2bit` file was included for all methods.
 * Time for reading the `.bed` file was not included, except for command-line `twobitToFa` (`bed.gz` was pre-unzipped).
-* All parallel experiments used 16 threads, except `twobitToFa`.
+* All parallel experiments used 16 threads, except `twobitToFa` which was faster with 8.
 * Missing timings (`n/a`):
   * Parallel timings for `py2bit` were not collected because Python's `multiprocessing` requires pickling
     (`TypeError: cannot pickle 'py2bit.pyTwoBit' object`).
