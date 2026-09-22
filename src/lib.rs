@@ -111,7 +111,7 @@
 //! | EXONS | 1-thread / hot | 1-thread / cold | 1-thread / prefetch | 16-thread / hot | 16-thread / cold |
 //! |---|---:|---:|---:|---:|---:|
 //! | **twobitreader** (rust)     | 90    | 1,600  | 180 | 11    | 190   |
-//! | **py2bit** (C, python)      | 180   | 3,100  | n/a | n/a   | n/a   |
+//! | **py2bit** (C, python)      | 220   | 2,800  | n/a | n/a   | n/a   |
 //! | **GenomeKit** (C++, python) | 340   | 2,400  | n/a | n/a   | n/a   |
 //! | **twobit** (rust)           | 390   | 3,500  | n/a | n/a   | n/a   |
 //! | **twobitToFa** (C)          | 1,000 | 4,500  | n/a | 340   | 850   |
@@ -121,7 +121,7 @@
 //! | TRANSCRIPTS | 1-thread / hot | 1-thread / cold | 1-thread / prefetch | 16-thread / hot | 16-thread / cold |
 //! |---|---:|---:|---:|---:|---:|
 //! | **twobitreader** (rust)     | 150    | 2,300  | 250 | 18    | 190   |
-//! | **py2bit** (C, python)      | 400    | 4,000  | n/a | n/a   | n/a   |
+//! | **py2bit** (C, python)      | 450    | 3,500  | n/a | n/a   | n/a   |
 //! | **GenomeKit** (C++, python) | 660    | 2,900  | n/a | n/a   | n/a   |
 //! | **twobit** (rust)           | 890    | 7,700  | n/a | n/a   | n/a   |
 //! | **twobitToFa** (C)          | 2,100  | 6,900  | n/a | 840   | 1,200 |

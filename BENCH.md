@@ -5,7 +5,7 @@ The table of timings shown in the README is described below.
 ### Libraries
 * [`twobitreader 0.1`](https://github.com/andrewdelong/twobitreader-rust) - Rust crate for reading 2bit files
 * [`twobit 0.2`](https://github.com/jbethune/rust-twobit) - Rust crate for reading and writing 2bit files
-* [`py2bit 0.3`](https://github.com/deeptools/py2bit) - Python package written in C
+* [`py2bit 1.0.1`](https://github.com/deeptools/py2bit) - Python package written in C
 * [`GenomeKit 7.6.1`](https://github.com/deepgenomics/GenomeKit) - Python package written in C++
 * [`twobitreader 3.1`](https://github.com/benjschiller/twobitreader) - Python package
 * [`twobitToFa`](https://genome.ucsc.edu/goldenPath/help/twoBit.html) - Command line utility written in C
