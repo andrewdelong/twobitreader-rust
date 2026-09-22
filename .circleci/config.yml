@@ -60,9 +60,9 @@ jobs:
 
   build-macos-x86:
     resource_class:
-      macos.x86.medium.gen2
+      m4pro.medium
     macos:
-      xcode: 14.3.1
+      xcode: 26.4.1
     steps:
       - checkout
       - run:

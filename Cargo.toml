@@ -15,10 +15,22 @@ byteorder = "1"
 memmap2 = "0"
 seq-macro = "0"
 
+# Apple targets need fcntl(F_RDADVISE) to prefetch file ranges; madvise does not work there.
+[target.'cfg(target_vendor = "apple")'.dependencies]
+libc = "0"
+
+# Windows targets need PrefetchVirtualMemory to prefetch file ranges.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0", features = ["Win32_System_Memory", "Win32_System_Threading"] }
+
 [dev-dependencies]
 flate2 = "1"
 itertools = "0"
 rayon = "1"
+
+# Cold benchmarks use fcntl(F_NOCACHE) to write an uncached copy of the 2bit file.
+[target.'cfg(target_vendor = "apple")'.dev-dependencies]
+libc = "0"
 
 [[bench]]
 name = "bench_twobitreader"

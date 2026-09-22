@@ -35,6 +35,13 @@ fn median_time(x: &Vec<u128>) -> u128 {
 // Invokes f() num_iter times and prints the mean/median/min/max of the reported durations.
 // The time durations are reported as integers in the specified unit ("s", "ms", "us", "ns").
 pub fn bench(name: &str, f: fn() -> Result<Duration, Box<dyn Error>>, num_iter: usize, unit: &str) {
+    // Any command line arguments act as filters, so that a subset can be re-run quickly.
+    // Flags are skipped, since cargo passes --bench through to the harness.
+    let mut filters = std::env::args().skip(1).filter(|arg| !arg.starts_with('-')).peekable();
+    if filters.peek().is_some() && !filters.any(|filter| name.contains(&filter)) {
+        return;
+    }
+
     // Convert duration to particular time unit as u128.
     let as_unit = match unit {
         "ns" => |d: Duration| d.as_nanos(),
@@ -125,6 +132,48 @@ pub fn load_into_page_cache<P: AsRef<Path>>(path: P) -> io::Result<()> {
     // (Avoid mmap madvise because it's not portable.)
     black_box(mmap.iter().skip(256).max());
     Ok(())
+}
+
+// Path of the scratch copy used by cold benchmarks.
+pub const COLD_PATH: &str = "tests/assets/hg38.p13.cold.2bit";
+
+// Writes a copy of the 2bit file whose contents are not in the page cache, and returns its path.
+//
+// This is how a "cold" benchmark is set up without `sudo purge`, which would evict every other
+// file on the machine as well. Caching is disabled on the destination descriptor, so the bytes
+// written here go straight to disk and are never cached; truncating the file first discards
+// whatever a previous iteration of the benchmark left behind. Reading the copy back therefore
+// has to go to disk, exactly as reading a freshly downloaded 2bit file would.
+#[cfg(target_vendor = "apple")]
+pub fn make_cold_copy<P: AsRef<Path>>(src: P) -> io::Result<PathBuf> {
+    use std::io::{Read, Write};
+    use std::os::unix::io::AsRawFd;
+
+    let dst_path = PathBuf::from(COLD_PATH);
+    let mut src = File::open(src)?;
+    let mut dst = File::create(&dst_path)?;
+
+    // SAFETY: fcntl(F_NOCACHE) only sets a flag on a descriptor this function owns.
+    if unsafe { libc::fcntl(dst.as_raw_fd(), libc::F_NOCACHE, 1) } < 0 {
+        return Err(io::Error::last_os_error());
+    }
+
+    let mut buf = vec![0u8; 8 << 20];
+    loop {
+        let n = src.read(&mut buf)?;
+        if n == 0 {
+            break;
+        }
+        dst.write_all(&buf[..n])?;
+    }
+    dst.sync_all()?;
+    Ok(dst_path)
+}
+
+// Cold benchmarks are only set up on targets where the page cache can be bypassed per file.
+#[cfg(not(target_vendor = "apple"))]
+pub fn make_cold_copy<P: AsRef<Path>>(_src: P) -> io::Result<PathBuf> {
+    Err(io::Error::new(io::ErrorKind::Unsupported, "no way to write an uncached file on this target"))
 }
 
 // Returns a local path to the hg38 2bit file used for tests on human reference genome.

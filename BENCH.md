@@ -1,9 +1,12 @@
 # Details of speed comparison
 
+The table of timings shown in the README is described below.
+
 ### Libraries
 * [`twobitreader 0.1`](https://github.com/andrewdelong/twobitreader-rust) - Rust crate for reading 2bit files
 * [`twobit 0.2`](https://github.com/jbethune/rust-twobit) - Rust crate for reading and writing 2bit files
 * [`py2bit 0.3`](https://github.com/deeptools/py2bit) - Python package written in C
+* [`GenomeKit 7.6.1`](https://github.com/deepgenomics/GenomeKit) - Python package written in C++
 * [`twobitreader 3.1`](https://github.com/benjschiller/twobitreader) - Python package
 * [`twobitToFa`](https://genome.ucsc.edu/goldenPath/help/twoBit.html) - Command line utility written in C
 
@@ -17,14 +20,15 @@
   and `transcript_support_level=1`.
 
 ### System
-* MacBook Pro running macOS 13.4
+* MacBook Pro running macOS 26.7
 * 2.3 GHz 8-core Intel i9
 * SSD hard drive
-* Rust 1.70
+* Rust 1.98
 
 ### Details
 * Lowercase masks were not used during extraction. Only N-blocks were enabled.
-* Times are average of 3 or 5 runs, rounded to two digits.
+* Ranges were treated as positive-strand ("+"), for consistency across libraries.
+* Times are average of 10 runs, rounded to two digits.
 * Time for opening the `.2bit` file was included for all methods.
 * Time for reading the `.bed` file was not included, except for command-line `twobitToFa` (`bed.gz` was pre-unzipped).
 * All parallel experiments used 16 threads, except `twobitToFa` which was faster with 8.
@@ -35,7 +39,7 @@
     that cannot be shared across threads by parallel libraries such as `rayon`.
 * Hot vs cold:
   * In "hot" experiments, the entire 2bit file was read into page cache beforehand.
-  * In "cold" experiments, MacOS's `purge` command was run beforehand.
+  * In "cold" experiments, cache was disabled via `fcntl(F_NOCACHE)` (twobitreader) or wiped via `sudo purge` (others).
 
 
 ### Extra details for Rust benchmarking
@@ -65,3 +69,13 @@ Parallel experiments were the same, but used `multiprocessing.Pool` to implement
   * Strictly speaking, splitting `gencode-transcripts.bed` this way is incorrect, 
     because it stores one exon per line (does not use the "block" columns), but 
     naive splitting is still representative of speed.
+
+### Extra details for `GenomeKit`
+
+* Timings include constructing the `Interval(chrom, "+", start, end, "hg38.p13")` 
+  object for each dna query, since that's a GenomeKit-specific overhead.
+* The strand was kept as '+' even though GenomeKit is capable of 
+  strand-sensitive extraction. Reverse complementing has a small overhead, 
+  so this was for comparability with the more low-level libraries.
+* The parallel timings say "n/a" because GenomeKit is not yet compatible
+  with free-threaded Python, and the pickling overhead of `multiprocessing.Pool` negates any performance benefit of parallelism this way.

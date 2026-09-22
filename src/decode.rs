@@ -1,5 +1,6 @@
 // Standard library
 use std::iter::zip;
+use std::mem::MaybeUninit;
 
 // Dependencies
 use seq_macro::seq;
@@ -41,42 +42,36 @@ const DECODE_U8: [u32; 256] = seq!(i in 0..256 {[#(
 
 // Decode 2-bit packed dna, starting at the given position.
 // The contents of dst are replaced by ASCII nucleotides.
-pub(crate) fn decode(start: usize, dna: &[u8], dst: &mut [u8]) {
-    // Transmute dst into a u32 slice (quads), plus any leading/trailing u8s needed to align it.
-    // This allows the main quad-based decoding loop to perform correctly-aligned writes,
-    // which is important for speed and for portability.
-    let (dst_prequads, dst_quads, dst_postquads) = unsafe { dst.align_to_mut() };
+pub(crate) fn decode(start: usize, dna: &[u8], dst: &mut [MaybeUninit<u8>]) {
+    // Split dst into quads (groups of four nucleotides), plus any trailing u8s left over.
+    // Quads are the unit the main decoding loop works in, because one packed source byte holds
+    // exactly four nucleotides, so each iteration reads one byte and writes four.
+    let (dst_quads, dst_tail) = dst.as_chunks_mut::<NUCS_PER_U8>();
 
-    // Calculate the start byte / start alignment corresponding each of the output slices.
+    // Calculate the start byte / start alignment corresponding to the output slices.
     // - start_byte: index of first byte to be decoded
     // - start_align: index of first nucleotide within byte
-    // - quads_start: position of first nucleotide of u32-aligned dst
-    // - quads_start_byte: index of first byte to be decoded as quad
-    // - quads_start_align: index of first nucleotide within byte to be decoded as quad
-    // - postquads_start_byte: index of first byte to be decoded after quads
+    // - tail_start_byte: index of first byte to be decoded after quads
+    //
+    // Every quad begins NUCS_PER_U8 nucleotides after the one before it, so they all share the
+    // same alignment within their source byte, namely start_align. The tail does too.
     let start_byte = start / NUCS_PER_U8;
     let start_align = start % NUCS_PER_U8;
-    let quads_start = start + dst_prequads.len();
-    let quads_start_byte = quads_start / NUCS_PER_U8;
-    let quads_start_align = quads_start % NUCS_PER_U8;
-    let postquads_start_byte = quads_start_byte + dst_quads.len();
-
-    // Decode enough just enough leading nucleotides to bring dst into u32 alignment.
-    decode_subquad(start_byte, start_align, dna, dst_prequads);
+    let tail_start_byte = start_byte + dst_quads.len();
 
     // Decode as many quads as possible.
     // - The decoding loop is specialized for each of the four possible start_align values {0,1,2,3},
     //   which allows the compiler to bit-shift by a known constant, rather than by a variable amount.
-    match quads_start_align {
-        0 => decode_quads::<0>(quads_start_byte, dna, dst_quads),
-        1 => decode_quads::<1>(quads_start_byte, dna, dst_quads),
-        2 => decode_quads::<2>(quads_start_byte, dna, dst_quads),
-        3 => decode_quads::<3>(quads_start_byte, dna, dst_quads),
+    match start_align {
+        0 => decode_quads::<0>(start_byte, dna, dst_quads),
+        1 => decode_quads::<1>(start_byte, dna, dst_quads),
+        2 => decode_quads::<2>(start_byte, dna, dst_quads),
+        3 => decode_quads::<3>(start_byte, dna, dst_quads),
         _ => unreachable!(),
     };
 
     // Decode whatever trailing nucleotides remained to be filled after quads.
-    decode_subquad(postquads_start_byte, quads_start_align, dna, dst_postquads);
+    decode_subquad(tail_start_byte, start_align, dna, dst_tail);
 }
 
 // Decodes up to 3 nucleotides (i.e., less than a quad) from 2-bit packed DNA.
@@ -84,7 +79,7 @@ pub(crate) fn decode(start: usize, dna: &[u8], dst: &mut [u8]) {
 // - start_align: index of start nucleotide within the start byte.
 // - dna: packed bytes of DNA for a 2bit sequence record.
 // - dst: destination to decode ASCII nucleotides into.
-fn decode_subquad(start_byte: usize, start_align: usize, dna: &[u8], dst: &mut [u8]) {
+fn decode_subquad(start_byte: usize, start_align: usize, dna: &[u8], dst: &mut [MaybeUninit<u8>]) {
     if dst.is_empty() {
         return;
     }
@@ -108,7 +103,7 @@ fn decode_subquad(start_byte: usize, start_align: usize, dna: &[u8], dst: &mut [
 
     // Write the relevant ASCII bytes from nucs into dst.
     for d in dst {
-        *d = (nucs & 0xff) as u8;
+        d.write((nucs & 0xff) as u8);
         nucs >>= BITS_PER_U8;
     }
 }
@@ -118,7 +113,7 @@ fn decode_subquad(start_byte: usize, start_align: usize, dna: &[u8], dst: &mut [
 // - START_ALIGN: index of start nucleotide within the start byte.
 // - dna: packed bytes of DNA for a 2bit sequence record.
 // - dst: destination to decode quads of ASCII nucleotides into.
-fn decode_quads<const START_ALIGN: usize>(start_byte: usize, dna: &[u8], dst: &mut [u32]) {
+fn decode_quads<const START_ALIGN: usize>(start_byte: usize, dna: &[u8], dst: &mut [[MaybeUninit<u8>; NUCS_PER_U8]]) {
     if dst.is_empty() {
         return;
     }
@@ -130,7 +125,7 @@ fn decode_quads<const START_ALIGN: usize>(start_byte: usize, dna: &[u8], dst: &m
     if START_ALIGN == 0 {
         // Source quads from dna are all byte-aligned, so just decode directly into dst.
         for (s, d) in zip(src, dst) {
-            *d = DECODE_U8[*s as usize];
+            d.write_copy_of_slice(&DECODE_U8[*s as usize].to_le_bytes());
         }
     } else {
         // Source quads from dna are not byte-aligned, so each decode straddles two src bytes.
@@ -138,7 +133,7 @@ fn decode_quads<const START_ALIGN: usize>(start_byte: usize, dna: &[u8], dst: &m
         let mut prev = DECODE_U8[src[0] as usize];
         for (s, d) in zip(&src[1..], dst) {
             let next = DECODE_U8[*s as usize];
-            *d = combine_quads::<START_ALIGN>(prev, next);
+            d.write_copy_of_slice(&combine_quads::<START_ALIGN>(prev, next).to_le_bytes());
             prev = next;
         }
     }
