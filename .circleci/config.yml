@@ -16,7 +16,6 @@ jobs:
           command: |
             cargo --version
             rustc --version
-            rustup --version
       - run:
           name: Generate lockfile
           command: cargo generate-lockfile
@@ -69,7 +68,6 @@ jobs:
             source ~/.cargo/env
             cargo --version
             rustc --version
-            rustup --version
       - run:
           name: Generate lockfile
           command: cargo generate-lockfile
@@ -123,7 +121,6 @@ jobs:
                                  --component clippy --component rustfmt
             cargo --version
             rustc --version
-            rustup --version
       - run:
           name: Generate lockfile
           command: cargo generate-lockfile
