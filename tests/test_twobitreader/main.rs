@@ -26,7 +26,6 @@ fn test_malformed_header_error() {
     // File has a duplicate sequence name
     let r = TwobitReader::open("tests/assets/malformed-duplicate-name.2bit");
     assert!(r.is_err() && r.err().unwrap().kind() == io::ErrorKind::InvalidData);
-
 }
 
 #[test]

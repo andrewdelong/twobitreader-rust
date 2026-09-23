@@ -67,11 +67,11 @@
 //! # let tbr = TwobitReader::open("hg38.2bit")?;
 //! use twobitreader::reverse_complement;
 //! use rayon::prelude::*;
-//! 
+//!
 //! fn stranded(seq: String, strand: char) -> String {
 //!     if strand == '+' { seq } else { reverse_complement(seq) }
 //! }
-//! 
+//!
 //! let transcripts = [                   // (transcript_id, chromosome, exons)
 //!     ("ENST00000407983.7", "chr2", '+', vec![(264899, 265007),     // Exon 1
 //!                                             (271865, 271939),     // Exon 2
@@ -112,7 +112,7 @@
 //! - **prefetch** runs are cold but with a `prefetch` call preceding extraction.
 //!
 //! The table below shows running times in milliseconds. Experimental details are `BENCH.md`.
-//! 
+//!
 //! | EXONS | 1-thread / hot | 1-thread / cold | 1-thread / prefetch | 16-thread / hot | 16-thread / cold |
 //! |---|---:|---:|---:|---:|---:|
 //! | **twobitreader** (rust)     | 90    | 1,600  | 180 | 11    | 190   |
@@ -132,7 +132,7 @@
 //! | **twobitToFa** (C)          | 2,100  | 6,900  | n/a | 840   | 1,200 |
 //! | **twobitreader** (python)   | 13,000 | 21,000 | n/a | 2,800 | 3,500 |
 //! | **Biopython** (python)      | 19,000 | 25,000 | n/a | n/a   | n/a   |
-//! 
+//!
 //! # Dependencies
 //!
 //! * `byteorder` for handling endian-ness
@@ -142,6 +142,7 @@
 //! * `windows-sys` for prefetching file ranges on Windows targets
 
 // Standard library
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, Cursor, ErrorKind::InvalidData, Read};
@@ -151,9 +152,8 @@ use std::mem::size_of;
 use std::mem::MaybeUninit;
 use std::ops::Range;
 use std::path::Path;
-use std::vec;
 use std::sync::OnceLock;
-use std::borrow::Borrow;
+use std::vec;
 
 // Crate modules
 mod decode;
@@ -192,9 +192,9 @@ pub struct TwobitReader {
 ///
 #[derive(Debug)]
 struct TwobitSequence {
-    data: OnceLock<TwobitSequenceData>,  // Heavy data loaded lazily from the sequence record.
-    name: String,                        // Sequence name ("chr3", etc.)
-    data_offset: u64,                    // Offset to data block
+    data: OnceLock<TwobitSequenceData>, // Heavy data loaded lazily from the sequence record.
+    name: String,                       // Sequence name ("chr3", etc.)
+    data_offset: u64,                   // Offset to data block
 }
 
 /// Details of a sequence record located deeper in the file, such as block indices.
@@ -344,7 +344,7 @@ impl TwobitReader {
         // Check range before trying to do any might-panic arithmetic with (start, end)
         let seq = self.get_seq_data_by_name(name);
         check_range(seq, start, end);
-        
+
         // Prepare an empty buffer with sufficient capacity.
         dst.clear();
         let mut buf = unsafe { dst.as_mut_vec() };
@@ -456,11 +456,11 @@ impl TwobitReader {
     /// # use std::io;
     /// # use twobitreader::TwobitReader;
     /// let tbr = TwobitReader::open("hg38.2bit")?;
-    /// let ranges = [(10000, 10006), (10006, 10010)];  // "CGTATC" "CCAC"
-    /// let seq = tbr.concat("chr2", &ranges);          // "CGTATCCCAC"
+    /// let ranges = [(10000, 10006), (10006, 10010)]; // "CGTATC" "CCAC"
+    /// let seq = tbr.concat("chr2", &ranges);         // "CGTATCCCAC"
     /// # Ok::<(), io::Error>(())
     /// ```
-    /// 
+    ///
     /// # Panics
     ///
     /// Panics if the sequence name was not found or if any range was invalid.
@@ -486,7 +486,7 @@ impl TwobitReader {
         let total_len = ranges
             .iter()
             .map(|&(start, end)| {
-                check_start_inclusive(start, base);    // Check start >= base before subtracting
+                check_start_inclusive(start, base); // Check start >= base before subtracting
                 check_range(seq, start - base, end);
                 end - (start - base)
             })
@@ -508,7 +508,7 @@ impl TwobitReader {
     }
 
     /// A version of [`concat`](Self::concat)` that iterates through `ranges`, consuming it.
-    /// 
+    ///
     /// # Example
     ///
     /// ```no_run
@@ -723,14 +723,16 @@ impl TwobitReader {
         #[cfg(debug_assertions)]
         buf_uninit.fill(MaybeUninit::new(0xfe));
 
-        // Decode packed 2-bit dna from the given start position, 
+        // Decode packed 2-bit dna from the given start position.
         decode(start, dna, buf_uninit);
 
         // SAFETY: decode() wrote every byte of its destination slice. If we arrived
         // here without a panic, then range_len additional bytes are now valid ASCII
         // and can be safely appended (via set_len) to dst.
         let old_len = dst.len();
-        unsafe { dst.set_len(old_len + range_len); }
+        unsafe {
+            dst.set_len(old_len + range_len);
+        }
         let buf_init = &mut dst[old_len..];
 
         // Apply N-block and lowercase masks to the newly-written portion of dst, in-place.
@@ -775,7 +777,7 @@ fn read_endianness(mmap: &Mmap) -> io::Result<Endianness> {
     match signature {
         SIGNATURE_LILEND => Ok(Endianness::Little),
         SIGNATURE_BIGEND => Ok(Endianness::Big),
-        _ => Err(io::Error::new(InvalidData, "invalid file signature.")),
+        _ => Err(io::Error::new(InvalidData, "failed to read a valid 2bit file signature.")),
     }
 }
 
@@ -788,7 +790,6 @@ fn read_seqs(mmap: &Mmap, endianness: Endianness) -> io::Result<Vec<TwobitSequen
         Endianness::Big => read_seqs_endian::<BigEndian>(mmap),
     }
 }
-
 
 // Implements read_seqs after the endian-ness of the file has been determined from the signature.
 fn read_seqs_endian<B: ByteOrder>(mmap: &Mmap) -> io::Result<Vec<TwobitSequence>> {
@@ -832,7 +833,7 @@ fn read_seqs_endian<B: ByteOrder>(mmap: &Mmap) -> io::Result<Vec<TwobitSequence>
         // through the OnceLock below. This avoids cost of paging in block data that may never be used,
         // which tends to be scattered around the file; important for opening cold files quickly.
         let data = OnceLock::new();
-        seqs.push(TwobitSequence{data, name, data_offset });
+        seqs.push(TwobitSequence { data, name, data_offset });
     }
     Ok(seqs)
 }
@@ -845,7 +846,7 @@ fn read_seq_data(mmap: &Mmap, masked: bool, endianness: Endianness, data_offset:
         Endianness::Big => read_seq_data_endian::<BigEndian>(mmap, masked, data_offset),
     }
 }
-    
+
 // Implements read_seq_data for a specific endian-ness.
 fn read_seq_data_endian<B: ByteOrder>(mmap: &Mmap, masked: bool, data_offset: u64) -> TwobitSequenceData {
     // Prepare to read the sequence's data block.
@@ -867,7 +868,11 @@ fn read_seq_data_endian<B: ByteOrder>(mmap: &Mmap, masked: bool, data_offset: u6
     // Get offset and length of packed DNA, and make sure it's within the file's size.
     let dna_offset = cursor.position() as usize;
     let dna_bytes = dna_len.div_ceil(NUCS_PER_U8);
-    assert!(dna_offset + dna_bytes <= cursor.get_ref().len(), "Failed to read DNA from 2bit file. DNA data was truncated.");
+
+    assert!(
+        dna_offset + dna_bytes <= cursor.get_ref().len(),
+        "Failed to read DNA from 2bit file. DNA data was truncated."
+    );
 
     TwobitSequenceData { dna_offset, dna_bytes, dna_len, nblocks, masks }
 }
@@ -915,7 +920,7 @@ fn check_blocks(blocks: &Blocks, dna_len: usize) {
 }
 
 #[cfg(not(debug_assertions))]
-fn check_blocks(_blocks: &Blocks, _dna_len: usize) { }
+fn check_blocks(_blocks: &Blocks, _dna_len: usize) {}
 
 // Searches for block ranges that overlap query range [start..end] where end = start+dst.len().
 // For each block range found, calls f() with the corresponding sub-slice of dst,

@@ -1,4 +1,4 @@
-use twobitreader::{TwobitReader, reverse_complement};
+use twobitreader::{reverse_complement, TwobitReader};
 
 // Standard library
 use std::collections::HashMap;
@@ -18,16 +18,16 @@ use rayon::ThreadPoolBuilder;
 // Which cache scenario to simulate in the benchmark run.
 #[derive(Clone, Copy, PartialEq)]
 enum Cache {
-    Hot,          // File already resides in the page cache.
-    Cold,         // File is not yet in the page cache at all.
-    ColdPrefetch, // Cold, but with a prefetch hint at upcoming data access.
+    Hot,      // File already resides in the page cache.
+    Cold,     // File is not yet in the page cache at all.
+    Prefetch, // Cold, but with a prefetch hint at upcoming data access.
 }
 
 // How and whether to use parallelism in the benchmark run.
 #[derive(Clone, Copy, PartialEq)]
 enum Parallel {
-    None,          // No parallelism.
-    Rayon,         // Use Rayon for parallelism.
+    None,  // No parallelism.
+    Rayon, // Use Rayon for parallelism.
 }
 
 // Returns the path to benchmark against, preparing the page cache as the scenario requires.
@@ -39,7 +39,7 @@ fn setup(cache: Cache) -> Result<PathBuf, Box<dyn Error>> {
             load_into_page_cache(&path)?;
             Ok(path)
         }
-        Cache::Cold | Cache::ColdPrefetch => Ok(make_cold_copy(&path)?),
+        Cache::Cold | Cache::Prefetch => Ok(make_cold_copy(&path)?),
     }
 }
 
@@ -50,7 +50,6 @@ fn apply_strand(dna: String, strand: char) -> String {
         assert_eq!(strand, '+', "Invalid strand '{strand}'");
         dna
     }
-    
 }
 
 // Load hg38 and time processing the header
@@ -89,7 +88,7 @@ fn bench_hg38_exons(cache: Cache, parallel: Parallel) -> Result<Duration, Box<dy
 
     // Open file and collect strings into a vec, either in parallel or sequentially.
     let tbr = TwobitReader::open(path)?;
-    if cache == Cache::ColdPrefetch {
+    if cache == Cache::Prefetch {
         tbr.prefetch(&exons);
     }
     let dst: Vec<_> = if parallel == Parallel::Rayon {
@@ -112,23 +111,22 @@ fn bench_hg38_transcripts(cache: Cache, parallel: Parallel) -> Result<Duration, 
 
     // Open file and collect transcript strings into a hashmap, either in parallel or sequentially.
     let tbr = TwobitReader::open(path)?;
-    if cache == Cache::ColdPrefetch {
-        // Iterator across the exons of all transcripts.
-        let exons = transcripts.iter()
-            .flat_map(|(_id, chrom, _strand, exons)| {
-                exons.iter().map(move |&(start, end)| (chrom, start, end))
-            }
-        );
+    if cache == Cache::Prefetch {
+        let exons = transcripts // Collect the exons of all transcripts.
+            .iter()
+            .flat_map(|(_id, chrom, _strand, exons)| exons.iter().map(move |&(start, end)| (chrom, start, end)));
         tbr.prefetch(exons);
     }
     let dst: HashMap<_, _> = if parallel == Parallel::Rayon {
-        transcripts.par_iter().map(|(id, chrom, strand, exons)|
-            (id, apply_strand(tbr.concat(chrom, exons), *strand))
-        ).collect()
+        transcripts
+            .par_iter()
+            .map(|(id, chrom, strand, exons)| (id, apply_strand(tbr.concat(chrom, exons), *strand)))
+            .collect()
     } else {
-        transcripts.iter().map(|(id, chrom, strand, exons)|
-            (id, apply_strand(tbr.concat(chrom, exons), *strand))
-        ).collect()
+        transcripts
+            .iter()
+            .map(|(id, chrom, strand, exons)| (id, apply_strand(tbr.concat(chrom, exons), *strand)))
+            .collect()
     };
 
     let duration = tic.elapsed();
@@ -150,10 +148,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     if make_cold_copy(download_hg38()?).is_ok() {
         bench("hg38_open_cold", || bench_hg38_open(Cache::Cold), 3, "ms");
         bench("hg38_exons_cold_prefetch_only", || bench_hg38_exons_prefetch_only(), 10, "ms");
-        bench("hg38_exons_cold_prefetch", || bench_hg38_exons(Cache::ColdPrefetch, Parallel::None), 10, "ms");
+        bench("hg38_exons_cold_prefetch", || bench_hg38_exons(Cache::Prefetch, Parallel::None), 10, "ms");
         bench("hg38_exons_cold_basic", || bench_hg38_exons(Cache::Cold, Parallel::None), 10, "ms");
         bench("hg38_exons_cold_rayon", || bench_hg38_exons(Cache::Cold, Parallel::Rayon), 10, "ms");
-        bench("hg38_transcripts_cold_prefetch", || bench_hg38_transcripts(Cache::ColdPrefetch, Parallel::None), 10, "ms");
+        bench("hg38_transcripts_cold_prefetch", || bench_hg38_transcripts(Cache::Prefetch, Parallel::None), 10, "ms");
         bench("hg38_transcripts_cold_basic", || bench_hg38_transcripts(Cache::Cold, Parallel::None), 10, "ms");
         bench("hg38_transcripts_cold_rayon", || bench_hg38_transcripts(Cache::Cold, Parallel::Rayon), 10, "ms");
         std::fs::remove_file(COLD_PATH)?;

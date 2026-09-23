@@ -100,8 +100,13 @@ pub fn read_bed<P: AsRef<Path>>(path: P) -> Result<Vec<(String, usize, usize, ch
         let end = cols.next().ok_or("expected >=6 tab-separated columns")?.parse::<usize>()?;
         let name = cols.next().ok_or("expected >=6 tab-separated columns")?.to_string();
         let _score = cols.next().ok_or("expected >=6 tab-separated columns")?.to_string();
-        let strand = cols.next().ok_or("expected >=6 tab-separated columns")?.to_string()
-                     .chars().next().expect("expected + or - in column 6");
+        let strand = cols
+            .next()
+            .ok_or("expected >=6 tab-separated columns")?
+            .to_string()
+            .chars()
+            .next()
+            .expect("expected + or - in column 6");
         result.push((chrom, start, end, strand, name));
     }
     Ok(result)
@@ -120,7 +125,8 @@ pub fn read_exons() -> Result<Vec<(String, usize, usize)>, Box<dyn Error>> {
 //   Vec<(transcript_id, chrom, strand, Vec<(start, end)>)>
 pub fn read_transcripts() -> Result<Vec<(String, String, char, Vec<(usize, usize)>)>, Box<dyn Error>> {
     let bed = read_bed("benches/assets/gencode-transcripts.bed.gz")?;
-    let transcripts = bed.into_iter().map(|(chrom, start, end, strand, id)| ((id, chrom, strand), (start, end))).into_group_map();
+    let transcripts =
+        bed.into_iter().map(|(chrom, start, end, strand, id)| ((id, chrom, strand), (start, end))).into_group_map();
     let transcripts = transcripts.into_iter().map(|((id, chrom, strand), exons)| (id, chrom, strand, exons)).collect();
     Ok(transcripts)
 }

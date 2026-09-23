@@ -1,7 +1,7 @@
 version: 2.1
 
 orbs:
-  windows: circleci/windows@5.0.0
+  windows: circleci/windows@5
 
 jobs:
   build-linux-x86:
@@ -70,7 +70,7 @@ jobs:
           command: curl -o rustup https://sh.rustup.rs
       - run:
           name: Install rust toolchain
-          command: bash rustup -y --verbose && source ~/.cargo/env
+          command: bash rustup -y --verbose x86_64-pc-windows-msvc && source ~/.cargo/env
       - run:
           name: Print versions
           command: cargo --version; rustc --version; rustup --version
