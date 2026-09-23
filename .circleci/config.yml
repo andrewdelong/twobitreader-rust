@@ -21,46 +21,37 @@ jobs:
           name: Generate lockfile
           command: cargo generate-lockfile
       - restore_cache:
-          name: Restore cache
           keys:
-            - cargo-v0-linux-{{ arch }}-{{ checksum "Cargo.lock" }}
-            - cargo-v0-linux-{{ arch }}
+            - cargo-v1-{{ arch }}-{{ checksum "Cargo.lock" }}
+            - cargo-v1-{{ arch }}
       - run:
           name: Build debug
-          command: cargo build
+          command: cargo build --locked
       - run:
           name: Run tests
-          command: cargo test --verbose --no-fail-fast
+          command: cargo test --locked --verbose --no-fail-fast
       - run:
           name: Build release
-          command: cargo build --release
+          command: cargo build --locked --release
       - run:
           name: Build benchmarks
-          command: cargo bench --no-run
+          command: cargo bench --locked --no-run
       - run:
           name: Run linter
-          command: cargo clippy --no-deps
+          command: cargo clippy --locked --no-deps
       - run:
           name: Run format check
           command: cargo fmt --check
       - run:
           name: Build docs
-          command: cargo rustdoc -- --extend-css custom.css
+          command: cargo rustdoc --locked --all-features -- --extend-css custom.css
       - save_cache:
-          name: Save cache
-          key: cargo-v0-linux-{{ arch }}-{{ checksum "Cargo.lock" }}
+          key: cargo-v1-{{ arch }}-{{ checksum "Cargo.lock" }}
           paths:
-            - ~/.cargo/registry
-            - target/debug/.fingerprint
-            - target/debug/build
-            - target/debug/deps
-            - target/release/.fingerprint
-            - target/release/build
-            - target/release/deps
-            - target/.rustdoc_fingerprint.json
-            - target/doc
-            - tests/assets/hg38.p13.2bit
-
+            - ~/.cargo/registry/index
+            - ~/.cargo/registry/cache
+            - ~/.cargo/git/db
+  
   build-macos-m4:
     resource_class:
       m4pro.medium
@@ -85,43 +76,36 @@ jobs:
       - restore_cache:
           name: Restore cache
           keys:
-            - cargo-v0-macos-{{ arch }}-{{ checksum "Cargo.lock" }}
-            - cargo-v0-macos-{{ arch }}
+            - cargo-v1-{{ arch }}-{{ checksum "Cargo.lock" }}
+            - cargo-v1-{{ arch }}
       - run:
           name: Build debug
-          command: cargo build
+          command: cargo build --locked
       - run:
           name: Run tests
-          command: cargo test --verbose --no-fail-fast
+          command: cargo test --locked --verbose --no-fail-fast
       - run:
           name: Build release
-          command: cargo build --release
+          command: cargo build --locked --release
       - run:
           name: Build benchmarks
-          command: cargo bench --no-run
+          command: cargo bench --locked --no-run
       - run:
           name: Run linter
-          command: cargo clippy --no-deps
+          command: cargo clippy --locked --no-deps
       - run:
           name: Run format check
           command: cargo fmt --check
       - run:
           name: Build docs
-          command: cargo rustdoc -- --extend-css custom.css
+          command: cargo rustdoc --locked --all-features -- --extend-css custom.css
       - save_cache:
           name: Save cache
-          key: cargo-v0-macos-{{ arch }}-{{ checksum "Cargo.lock" }}
+          key: cargo-v1-{{ arch }}-{{ checksum "Cargo.lock" }}
           paths:
-            - ~/.cargo/registry
-            - target/debug/.fingerprint
-            - target/debug/build
-            - target/debug/deps
-            - target/release/.fingerprint
-            - target/release/build
-            - target/release/deps
-            - target/.rustdoc_fingerprint.json
-            - target/doc
-            - tests/assets/hg38.p13.2bit
+            - ~/.cargo/registry/index
+            - ~/.cargo/registry/cache
+            - ~/.cargo/git/db
 
   build-windows-x86:
     executor:
@@ -134,8 +118,8 @@ jobs:
       - run:
           name: Install rust toolchain
           command: |
-            .\rustup-init.exe -y --default-host x86_64-pc-windows-msvc \
-                                 --default-toolchain 1.98 --profile minimal \
+            .\rustup-init.exe -y --default-host x86_64-pc-windows-msvc `
+                                 --default-toolchain 1.98 --profile minimal `
                                  --component clippy --component rustfmt
             cargo --version
             rustc --version
@@ -144,45 +128,36 @@ jobs:
           name: Generate lockfile
           command: cargo generate-lockfile
       - restore_cache:
-          name: Restore cache
           keys:
-            - cargo-v0-windows-{{ arch }}-{{ checksum "Cargo.lock" }}
-            - cargo-v0-windows-{{ arch }}
+            - cargo-v1-{{ arch }}-{{ checksum "Cargo.lock" }}
+            - cargo-v1-{{ arch }}
       - run:
           name: Build debug
-          command: cargo build
+          command: cargo build --locked
       - run:
           name: Run tests
-          command: cargo test --verbose --no-fail-fast
+          command: cargo test --locked --verbose --no-fail-fast
       - run:
           name: Build release
-          command: cargo build --release
+          command: cargo build --locked --release
       - run:
           name: Build benchmarks
-          command: cargo bench --no-run
+          command: cargo bench --locked --no-run
       - run:
           name: Run linter
-          command: cargo clippy --no-deps
+          command: cargo clippy --locked --no-deps
       - run:
           name: Run format check
           command: cargo fmt --check
       - run:
           name: Build docs
-          command: cargo rustdoc -- --extend-css custom.css
+          command: cargo rustdoc --locked --all-features -- --extend-css custom.css
       - save_cache:
-          name: Save cache
-          key: cargo-v0-windows-{{ arch }}-{{ checksum "Cargo.lock" }}
+          key: cargo-v1-{{ arch }}-{{ checksum "Cargo.lock" }}
           paths:
-            - .cargo\registry
-            - target\debug\.fingerprint
-            - target\debug\build
-            - target\debug\deps
-            - target\release\.fingerprint
-            - target\release\build
-            - target\release\deps
-            - target\.rustdoc_fingerprint.json
-            - target\doc
-            - tests\assets\hg38.p13.2bit
+            - .cargo\registry\index
+            - .cargo\registry\cache
+            - .cargo\git\db
 
 workflows:
   build-all:
