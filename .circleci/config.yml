@@ -126,7 +126,6 @@ jobs:
   build-windows-x86:
     executor:
       name: windows/default
-    shell: cmd.exe /c
     steps:
       - checkout
       - run:
