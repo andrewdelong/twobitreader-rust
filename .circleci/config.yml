@@ -13,7 +13,10 @@ jobs:
       - checkout
       - run:
           name: Print versions
-          command: cargo --version; rustc --version; rustup --version;
+          command: |
+            cargo --version
+            rustc --version
+            rustup --version
       - run:
           name: Generate lockfile
           command: cargo generate-lockfile
@@ -42,7 +45,7 @@ jobs:
           command: cargo fmt --check
       - run:
           name: Build docs
-          command: RUSTDOCFLAGS="--html-in-header doc/header.html" cargo doc --no-deps
+          command: cargo rustdoc -- --extend-css custom.css
       - save_cache:
           name: Save cache
           key: cargo-v0-linux-{{ arch }}-{{ checksum "Cargo.lock" }}
@@ -70,10 +73,12 @@ jobs:
           command: curl -o rustup https://sh.rustup.rs
       - run:
           name: Install rust toolchain
-          command: bash rustup -y --verbose x86_64-pc-windows-msvc && source ~/.cargo/env
-      - run:
-          name: Print versions
-          command: cargo --version; rustc --version; rustup --version
+          command: |
+            ./rustup -y --verbose
+            source ~/.cargo/env
+            cargo --version
+            rustc --version
+            rustup --version
       - run:
           name: Generate lockfile
           command: cargo generate-lockfile
@@ -102,7 +107,7 @@ jobs:
           command: cargo fmt --check
       - run:
           name: Build docs
-          command: RUSTDOCFLAGS="--html-in-header doc/header.html" cargo doc --no-deps
+          command: cargo rustdoc -- --extend-css custom.css
       - save_cache:
           name: Save cache
           key: cargo-v0-macos-{{ arch }}-{{ checksum "Cargo.lock" }}
@@ -126,16 +131,19 @@ jobs:
       - checkout
       - run:
           name: Download rustup
-          command: curl -o rustup https://sh.rustup.rs
+          command: curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64
       - run:
           name: Install rust toolchain
-          command: bash rustup -y --verbose
-      - run:
-          name: Print versions
-          command: ~/.cargo/bin/cargo --version; ~/.cargo/bin/rustc --version; ~/.cargo/bin/rustup --version
+          command: |
+            .\rustup-init.exe -y --default-host x86_64-pc-windows-msvc \
+                                 --default-toolchain 1.98 --profile minimal \
+                                 --component clippy --component rustfmt
+            cargo --version
+            rustc --version
+            rustup --version
       - run:
           name: Generate lockfile
-          command: ~/.cargo/bin/cargo generate-lockfile
+          command: cargo generate-lockfile
       - restore_cache:
           name: Restore cache
           keys:
@@ -143,39 +151,39 @@ jobs:
             - cargo-v0-windows-{{ arch }}
       - run:
           name: Build debug
-          command: ~/.cargo/bin/cargo build
+          command: cargo build
       - run:
           name: Run tests
-          command: ~/.cargo/bin/cargo test --verbose --no-fail-fast
+          command: cargo test --verbose --no-fail-fast
       - run:
           name: Build release
-          command: ~/.cargo/bin/cargo build --release
+          command: cargo build --release
       - run:
           name: Run benchmarks
-          command: ~/.cargo/bin/cargo bench
+          command: cargo bench
       - run:
           name: Run linter
-          command: ~/.cargo/bin/cargo clippy --no-deps
+          command: cargo clippy --no-deps
       - run:
           name: Run format check
-          command: ~/.cargo/bin/cargo fmt --check
+          command: cargo fmt --check
       - run:
           name: Build docs
-          command: $env:RUSTDOCFLAGS="--html-in-header doc/header.html"; ~/.cargo/bin/cargo doc --no-deps
+          command: cargo rustdoc -- --extend-css custom.css
       - save_cache:
           name: Save cache
           key: cargo-v0-windows-{{ arch }}-{{ checksum "Cargo.lock" }}
           paths:
-            - ~/.cargo/registry
-            - target/debug/.fingerprint
-            - target/debug/build
-            - target/debug/deps
-            - target/release/.fingerprint
-            - target/release/build
-            - target/release/deps
-            - target/.rustdoc_fingerprint.json
-            - target/doc
-            - tests/assets/hg38.p13.2bit
+            - .cargo\registry
+            - target\debug\.fingerprint
+            - target\debug\build
+            - target\debug\deps
+            - target\release\.fingerprint
+            - target\release\build
+            - target\release\deps
+            - target\.rustdoc_fingerprint.json
+            - target\doc
+            - tests\assets\hg38.p13.2bit
 
 workflows:
   build-all:

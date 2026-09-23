@@ -37,4 +37,4 @@ name = "bench_twobitreader"
 harness = false
 
 [package.metadata.docs.rs]
-rustdoc-args = ["--html-in-header", ".cargo/style.html"]
+rustdoc-args = ["--extend-css", "custom.css"]

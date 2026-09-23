@@ -7,7 +7,9 @@
 //! [standard format](http://genome.ucsc.edu/FAQ/FAQformat.html#format7) in bioinformatics.
 //!
 //! The motivation for this crate is speed.
-//! Extracting sequences is 1.5-30x faster than the best alternative, depending on use case.
+//! Extracting sequences is consistently faster than the best alternative.
+//! The focus is raw reading from 2bit, but fast concatenation and reverse-complement methods
+//! are also provided to make higher-level use cases easier.
 //!
 //! Tested on Linux, Mac, and Windows:
 //! <a href="https://dl.circleci.com/status-badge/redirect/gh/andrewdelong/twobitreader-rust/tree/main">
@@ -21,8 +23,8 @@
 //! ```no_run
 //! # use std::io;
 //! # use twobitreader::TwobitReader;
-//! let tbr = TwobitReader::open("hg38.2bit")?;  // Human genome, build 38
-//! let seq = tbr.get("chr1", 10000, 10005);     // -> String ("TAACC")
+//! let tbr = TwobitReader::open("hg38.2bit")?; // Human genome, build 38
+//! let seq = tbr.get("chr1", 10000, 10005);    // -> String ("TAACC")
 //! # Ok::<(), io::Error>(())
 //! ```
 //!
@@ -34,9 +36,9 @@
 //! # use twobitreader::TwobitReader;
 //! # let tbr = TwobitReader::open("hg38.2bit")?;
 //! // Exon ranges for human FKHL6 gene transcript (Gencode v43)
-//! let exons = [(1389575, 1391118),              // Exon 1 (start, end)
-//!              (1394695, 1395603)];             // Exon 2 (start, end)
-//! let transcript = tbr.concat("chr6", &exons);  // -> String
+//! let exons = [(1389575, 1391118),             // Exon 1 (start, end)
+//!              (1394695, 1395603)];            // Exon 2 (start, end)
+//! let transcript = tbr.concat("chr6", &exons); // -> String
 //! # //
 //! # // Same, but with zipped parallel arrays
 //! # let starts = [1389575, 1394695];
@@ -56,7 +58,7 @@
 //!             ("chr1", 30000, 35000), /* ... */ ];
 //! let seqs = args.into_par_iter()
 //!     .map(|(chrom, start, end)| tbr.get(chrom, start, end))
-//!     .collect::<Vec<_>>();  // -> Vec<String>
+//!     .collect::<Vec<_>>(); // -> Vec<String>
 //! # Ok::<(), io::Error>(())
 //! ```
 //! Or, assembling a batch of spliced transcripts in parallel:
@@ -78,12 +80,14 @@
 //!                                             (272036, 272557)]),   // Exon 3
 //!     ("ENST00000319331.4", "chr3", '+', vec![(3799430, 3799919),   // Exon 1
 //!                                             (3844363, 3849834)]), // Exon 2
-//!     /* ... assume exons are listed in genomic-coordinate order */
+//!     /* ... */
 //! ];
+//! // Concatenate exons and then reverse-complement if necessary.
+//! // (Correct if exons listed in genome-coordinate order.)
 //! let seqs = transcripts.into_par_iter()
 //!     .map(|(id, chrom, strand, exons)| (id, stranded(tbr.concat(chrom, exons), strand)))
-//!     .collect::<HashMap<_, _>>();       // HashMap<&str, String>
-//! let seq = &seqs["ENST00000407983.7"];  // -> &String to transcript sequence
+//!     .collect::<HashMap<_, _>>();      // HashMap<&str, String>
+//! let seq = &seqs["ENST00000407983.7"]; // -> &String to transcript sequence
 //! # Ok::<(), io::Error>(())
 //! ```
 //!
@@ -95,8 +99,8 @@
 //! # let tbr = TwobitReader::open("hg38.2bit")?;
 //! let exons = [("chr1", 10000, 10200),
 //!              ("chr1", 10500, 10700), /* ... */ ];
-//! tbr.prefetch(&exons);  // Tell the operating system to start paging in this data from disk
-//! let seqs = tbr.get_batch(&exons);
+//! tbr.prefetch(&exons);             // Ask the operating system to start paging this data from disk.
+//! let seqs = tbr.get_batch(&exons); // Access the memory as it arrives.
 //! # Ok::<(), io::Error>(())
 //! ```
 //!
@@ -507,7 +511,7 @@ impl TwobitReader {
         unsafe { String::from_utf8_unchecked(buf) }
     }
 
-    /// A version of [`concat`](Self::concat)` that iterates through `ranges`, consuming it.
+    /// A version of [`concat`](Self::concat) that iterates through `ranges`, consuming it.
     ///
     /// # Example
     ///
@@ -612,8 +616,8 @@ impl TwobitReader {
     /// # let tbr = TwobitReader::open("hg38.2bit")?;
     /// let exons = [("chr1", 10000, 15000),
     ///              ("chr2", 30000, 35000), /* ... */ ];
-    /// tbr.prefetch(&exons);   // Notifies OS to expect reads of this data. Returns immediately.
-    /// let seqs = tbr.get_batch(&exons);
+    /// tbr.prefetch(&exons);             // Ask the operating system to start paging this data from disk.
+    /// let seqs = tbr.get_batch(&exons); // Access the memory as it arrives.
     /// # Ok::<(), io::Error>(())
     /// ```
     ///
