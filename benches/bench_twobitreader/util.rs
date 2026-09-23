@@ -86,20 +86,23 @@ pub fn bench(name: &str, f: fn() -> Result<Duration, Box<dyn Error>>, num_iter: 
     println!("     \x1b[32m{name}\x1b[0m: {avg_str} {unit} {stats_str} {times_str}");
 }
 
-// Reads the first 4 columns of a bed.gz file. The returned Vec has structure:
-//   Vec<(chrom, start, end, name)>
-pub fn read_bed<P: AsRef<Path>>(path: P) -> Result<Vec<(String, usize, usize, String)>, Box<dyn Error>> {
+// Reads the first 6 columns of a bed.gz file. The returned Vec has structure:
+//   Vec<(chrom, start, end, strand, name)>
+pub fn read_bed<P: AsRef<Path>>(path: P) -> Result<Vec<(String, usize, usize, char, String)>, Box<dyn Error>> {
     let reader = io::BufReader::new(GzDecoder::new(File::open(path)?));
     let mut result = Vec::new();
     // Using read_until('\n') faster than lines(), but negligible benefit for .gz files
     for line in reader.lines() {
         let line = line?;
         let mut cols = line.split('\t');
-        let chrom = cols.next().ok_or("expected >=4 tab-separated columns")?.to_string();
-        let start = cols.next().ok_or("expected >=4 tab-separated columns")?.parse::<usize>()?;
-        let end = cols.next().ok_or("expected >=4 tab-separated columns")?.parse::<usize>()?;
-        let name = cols.next().ok_or("expected >=4 tab-separated columns")?.to_string();
-        result.push((chrom, start, end, name));
+        let chrom = cols.next().ok_or("expected >=6 tab-separated columns")?.to_string();
+        let start = cols.next().ok_or("expected >=6 tab-separated columns")?.parse::<usize>()?;
+        let end = cols.next().ok_or("expected >=6 tab-separated columns")?.parse::<usize>()?;
+        let name = cols.next().ok_or("expected >=6 tab-separated columns")?.to_string();
+        let _score = cols.next().ok_or("expected >=6 tab-separated columns")?.to_string();
+        let strand = cols.next().ok_or("expected >=6 tab-separated columns")?.to_string()
+                     .chars().next().expect("expected + or - in column 6");
+        result.push((chrom, start, end, strand, name));
     }
     Ok(result)
 }
@@ -108,17 +111,17 @@ pub fn read_bed<P: AsRef<Path>>(path: P) -> Result<Vec<(String, usize, usize, St
 //   Vec<(chrom, start, end)>
 pub fn read_exons() -> Result<Vec<(String, usize, usize)>, Box<dyn Error>> {
     let bed = read_bed("benches/assets/gencode-exons.bed.gz")?;
-    let exons = bed.into_iter().map(|(chrom, start, end, _)| (chrom, start, end)).collect();
+    let exons = bed.into_iter().map(|(chrom, start, end, _, _)| (chrom, start, end)).collect();
     Ok(exons)
 }
 
 // Reads gencode-transcripts.bed.gz and groups the intervals by transcript ID (BED name field).
 // The returned Vec has structure:
-//   Vec<(transcript_id, chrom, Vec<(start, end)>)>
-pub fn read_transcripts() -> Result<Vec<(String, String, Vec<(usize, usize)>)>, Box<dyn Error>> {
+//   Vec<(transcript_id, chrom, strand, Vec<(start, end)>)>
+pub fn read_transcripts() -> Result<Vec<(String, String, char, Vec<(usize, usize)>)>, Box<dyn Error>> {
     let bed = read_bed("benches/assets/gencode-transcripts.bed.gz")?;
-    let transcripts = bed.into_iter().map(|(chrom, start, end, id)| ((id, chrom), (start, end))).into_group_map();
-    let transcripts = transcripts.into_iter().map(|((id, chrom), exons)| (id, chrom, exons)).collect();
+    let transcripts = bed.into_iter().map(|(chrom, start, end, strand, id)| ((id, chrom, strand), (start, end))).into_group_map();
+    let transcripts = transcripts.into_iter().map(|((id, chrom, strand), exons)| (id, chrom, strand, exons)).collect();
     Ok(transcripts)
 }
 
@@ -128,7 +131,7 @@ pub fn read_transcripts() -> Result<Vec<(String, String, Vec<(usize, usize)>)>, 
 pub fn load_into_page_cache<P: AsRef<Path>>(path: P) -> io::Result<()> {
     let file = File::open(path)?;
     let mmap = unsafe { MmapOptions::new().map(&file)? };
-    // Access all pages by computing an arbitrary value.
+    // Computing an arbitrary value that touches all pages, thereby forcing them into memory.
     // (Avoid mmap madvise because it's not portable.)
     black_box(mmap.iter().skip(256).max());
     Ok(())

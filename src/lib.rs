@@ -120,10 +120,10 @@
 //!
 //! | TRANSCRIPTS | 1-thread / hot | 1-thread / cold | 1-thread / prefetch | 16-thread / hot | 16-thread / cold |
 //! |---|---:|---:|---:|---:|---:|
-//! | **twobitreader** (rust)     | 150    | 2,300  | 250 | 18    | 190   |
-//! | **py2bit** (C, python)      | 450    | 3,500  | n/a | n/a   | n/a   |
-//! | **GenomeKit** (C++, python) | 660    | 2,900  | n/a | n/a   | n/a   |
-//! | **twobit** (rust)           | 890    | 7,700  | n/a | n/a   | n/a   |
+//! | **twobitreader** (rust)     | 160    | 2,500  | 240 | 18    | 210   |
+//! | **py2bit** (C, python)      | 490    | 3,600  | n/a | n/a   | n/a   |
+//! | **GenomeKit** (C++, python) | 720    | 2,900  | n/a | n/a   | n/a   |
+//! | **twobit** (rust)           | 930    | 1,900  | n/a | n/a   | n/a   |
 //! | **twobitToFa** (C)          | 2,100  | 6,900  | n/a | 840   | 1,200 |
 //! | **twobitreader** (python)   | 13,000 | 21,000 | n/a | 2,800 | 3,500 |
 //! | **Biopython** (python)      | 19,000 | 25,000 | n/a | n/a   | n/a   |

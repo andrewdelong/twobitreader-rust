@@ -27,7 +27,8 @@ The table of timings shown in the README is described below.
 
 ### Details
 * Lowercase masks were not used during extraction. Only N-blocks were enabled.
-* Ranges were treated as positive-strand ("+"), for consistency across libraries.
+* Exons were extracted as positive strand ('+'), representing a low-level use case.
+* Transcripts were extracted in a strand-sensitive manner (reverse-complemented for '-'), representing a higher-level use case.
 * Times are average of 10 runs, rounded to two digits.
 * Time for opening the `.2bit` file was included for all methods.
 * Time for reading the `.bed` file was not included, except for command-line `twobitToFa` (`bed.gz` was pre-unzipped).
@@ -48,10 +49,10 @@ See `benches/bench_twobitreader.rs` in this crate. Nearly identical code was use
 
 ### Extra details for Python benchmarking
 
-A simplified version of the benchmarking for `py2bit` and `twobit` is shown below.
+A simplified version of the benchmarking for `py2bit` is shown below, with others analogous.
 ```python
-def bench_exons_sequential_py2bit():
-    exons = read_exons()
+def bench_exons_basic_py2bit():
+    exons = read_exons()  # [(chrom, start, end), ...]
     start_time = time()
     
     tb = py2bit.open("hg38.p13.2bit")
@@ -60,10 +61,30 @@ def bench_exons_sequential_py2bit():
     return time() - start_time
 ```
 
+```python
+def bench_transcript_basic_py2bit():
+    transcripts = read_transcripts()  # [(id, chrom, strand, [(start0, end0), ...]), ...]
+    start_time = time()
+    
+    # Exons are in genomic coordinate order, so reverse the joined sequence, not individual exons.
+    tb = py2bit.open("hg38.p13.2bit")
+    seqs = {id: apply_strand("".join([tb.sequence(chrom, *exon) for exon in exons]), strand)
+            for (id, chrom, strand, exons) in transcripts}
+    
+    return time() - start_time
+
+COMPLEMENT = str.maketrans("ACGTNacgtn", "TGCANtgcan")
+
+def apply_strand(seq, strand):
+    if strand == '-':
+        seq = seq.translate(COMPLEMENT)[::-1]  # Reverse complement
+    return seq
+```
+
 Parallel experiments were the same, but used `multiprocessing.Pool` to implement a parallel for loop.
 
 ### Extra details for `twobitToFa`
-* The command was `twobitToFa -bed={input}.bed -noMask hg38.p13.2bit /dev/null`.
+* The command was `twobitToFa -bed={input}.bed -noMask hg38.p13.2bit /dev/null` (not strand-sensitive).
 * Parallel runs used `xargs -P8`, where 8 processes was faster than defaults.
 * Parallel inputs were pre-split `.bed` files (10,000 line chunks). Split time was not included.
   * Strictly speaking, splitting `gencode-transcripts.bed` this way is incorrect, 
@@ -72,10 +93,8 @@ Parallel experiments were the same, but used `multiprocessing.Pool` to implement
 
 ### Extra details for `GenomeKit`
 
-* Timings include constructing the `Interval(chrom, "+", start, end, "hg38.p13")` 
+* Timings include constructing the `Interval(chrom, strand, start, end, "hg38.p13")` 
   object for each dna query, since that's a GenomeKit-specific overhead.
-* The strand was kept as '+' even though GenomeKit is capable of 
-  strand-sensitive extraction. Reverse complementing has a small overhead, 
-  so this was for comparability with the more low-level libraries.
 * The parallel timings say "n/a" because GenomeKit is not yet compatible
-  with free-threaded Python, and the pickling overhead of `multiprocessing.Pool` negates any performance benefit of parallelism this way.
+  with free-threaded Python, and the pickling overhead of `multiprocessing.Pool`
+  negates any performance benefit of parallelism this way.
