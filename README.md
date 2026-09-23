@@ -41,30 +41,35 @@ let seqs = args.into_par_iter()
 ```
 Or, assembling a batch of spliced transcripts in parallel:
 ```rust
+use twobitreader::reverse_complement;
 use rayon::prelude::*;
-let transcripts = [              // (transcript_id, chromosome, exons)
-    ("ENST00000407983.7", "chr2", vec![(264899, 265007),     // Exon 1
-                                       (271865, 271939),     // Exon 2
-                                       (272036, 272557)]),   // Exon 3
-    ("ENST00000319331.4", "chr3", vec![(3799430, 3799919),   // Exon 1
-                                       (3844363, 3849834)]), // Exon 2
-    /* ... */
+
+fn stranded(seq: String, strand: char) -> String {
+    if strand == '+' { seq } else { reverse_complement(seq) }
+}
+
+let transcripts = [                   // (transcript_id, chromosome, exons)
+    ("ENST00000407983.7", "chr2", '+', vec![(264899, 265007),     // Exon 1
+                                            (271865, 271939),     // Exon 2
+                                            (272036, 272557)]),   // Exon 3
+    ("ENST00000319331.4", "chr3", '+', vec![(3799430, 3799919),   // Exon 1
+                                            (3844363, 3849834)]), // Exon 2
+    /* ... assume exons are listed in genomic-coordinate order */
 ];
 let seqs = transcripts.into_par_iter()
-    .map(|(id, chrom, exons)| (id, tbr.concat(chrom, exons)))
+    .map(|(id, chrom, strand, exons)| (id, stranded(tbr.concat(chrom, exons), strand)))
     .collect::<HashMap<_, _>>();       // HashMap<&str, String>
 let seq = &seqs["ENST00000407983.7"];  // -> &String to transcript sequence
 ```
 
 **Cold files** are an order of magnitude slower to access than files already in memory ("hot").
-Use [`prefetch`](TwobitReader::prefetch) to dramatically improve speed:
+Use [`prefetch`](TwobitReader::prefetch) to dramatically improve single-threaded speed:
 ```rust
 let exons = [("chr1", 10000, 10200),
              ("chr1", 10500, 10700), /* ... */ ];
 tbr.prefetch(&exons);  // Tell the operating system to start paging in this data from disk
 let seqs = tbr.get_batch(&exons);
 ```
-(Note that decoding across parallel threads mostly obviates the need to prefetch.)
 
 ## Speed
 
@@ -82,7 +87,7 @@ The table below shows running times in milliseconds. Experimental details are `B
 | EXONS | 1-thread / hot | 1-thread / cold | 1-thread / prefetch | 16-thread / hot | 16-thread / cold |
 |---|---:|---:|---:|---:|---:|
 | **twobitreader** (rust)     | 90    | 1,600  | 180 | 11    | 190   |
-| **py2bit** (C, python)      | 180   | 3,100  | n/a | n/a   | n/a   |
+| **py2bit** (C, python)      | 220   | 2,800  | n/a | n/a   | n/a   |
 | **GenomeKit** (C++, python) | 340   | 2,400  | n/a | n/a   | n/a   |
 | **twobit** (rust)           | 390   | 3,500  | n/a | n/a   | n/a   |
 | **twobitToFa** (C)          | 1,000 | 4,500  | n/a | 340   | 850   |
@@ -91,10 +96,10 @@ The table below shows running times in milliseconds. Experimental details are `B
 
 | TRANSCRIPTS | 1-thread / hot | 1-thread / cold | 1-thread / prefetch | 16-thread / hot | 16-thread / cold |
 |---|---:|---:|---:|---:|---:|
-| **twobitreader** (rust)     | 150    | 2,300  | 250 | 18    | 190   |
-| **py2bit** (C, python)      | 400    | 4,000  | n/a | n/a   | n/a   |
-| **GenomeKit** (C++, python) | 660    | 2,900  | n/a | n/a   | n/a   |
-| **twobit** (rust)           | 890    | 7,700  | n/a | n/a   | n/a   |
+| **twobitreader** (rust)     | 160    | 2,500  | 240 | 18    | 210   |
+| **py2bit** (C, python)      | 490    | 3,600  | n/a | n/a   | n/a   |
+| **GenomeKit** (C++, python) | 720    | 2,900  | n/a | n/a   | n/a   |
+| **twobit** (rust)           | 930    | 1,900  | n/a | n/a   | n/a   |
 | **twobitToFa** (C)          | 2,100  | 6,900  | n/a | 840   | 1,200 |
 | **twobitreader** (python)   | 13,000 | 21,000 | n/a | 2,800 | 3,500 |
 | **Biopython** (python)      | 19,000 | 25,000 | n/a | n/a   | n/a   |
