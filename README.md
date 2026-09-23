@@ -1,5 +1,10 @@
 # twobitreader
 
+<a href="https://dl.circleci.com/status-badge/redirect/gh/andrewdelong/twobitreader-rust/tree/main">
+  <img align="right"
+       src="https://dl.circleci.com/status-badge/img/gh/andrewdelong/twobitreader-rust/tree/main.svg?style=shield&circle-token=866d66445adcd45b6a135f83a6211987fa1c4cf3"/>
+</a>
+
 This crate provides fast DNA sequence extraction from 2bit files, a
 [standard format](http://genome.ucsc.edu/FAQ/FAQformat.html#format7) in bioinformatics.
 
@@ -7,12 +12,6 @@ The motivation for this crate is speed.
 Extracting sequences is consistently faster than the best alternative.
 The focus is raw reading from 2bit, but fast concatenation and reverse-complement methods
 are also provided to make higher-level use cases easier.
-
-Tested on Linux, Mac, and Windows:
-<a href="https://dl.circleci.com/status-badge/redirect/gh/andrewdelong/twobitreader-rust/tree/main">
-  <img style="vertical-align:middle; margin-top:-2px;"
-       src="https://dl.circleci.com/status-badge/img/gh/andrewdelong/twobitreader-rust/tree/main.svg?style=shield&circle-token=866d66445adcd45b6a135f83a6211987fa1c4cf3"/>
-</a>
 
 ## Examples
 
@@ -71,8 +70,8 @@ Use [`prefetch`](TwobitReader::prefetch) to dramatically improve single-threaded
 ```rust
 let exons = [("chr1", 10000, 10200),
              ("chr1", 10500, 10700), /* ... */ ];
-tbr.prefetch(&exons);             // Ask the operating system to start paging this data from disk
-let seqs = tbr.get_batch(&exons); // Start decoding
+tbr.prefetch(&exons);             // Ask the operating system to start paging this data from disk.
+let seqs = tbr.get_batch(&exons); // Access the memory as it arrives.
 ```
 
 ## Speed

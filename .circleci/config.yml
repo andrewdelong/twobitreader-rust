@@ -72,7 +72,6 @@ jobs:
           name: Generate lockfile
           command: cargo generate-lockfile
       - restore_cache:
-          name: Restore cache
           keys:
             - cargo-v1-{{ arch }}-{{ checksum "Cargo.lock" }}
             - cargo-v1-{{ arch }}
@@ -98,7 +97,6 @@ jobs:
           name: Build docs
           command: cargo rustdoc --locked --all-features -- --extend-css custom.css
       - save_cache:
-          name: Save cache
           key: cargo-v1-{{ arch }}-{{ checksum "Cargo.lock" }}
           paths:
             - ~/.cargo/registry/index

@@ -2,7 +2,11 @@
 #![deny(missing_docs)]
 #![deny(unreachable_pub)]
 #![warn(rust_2018_idioms)]
-
+//! <a href="https://dl.circleci.com/status-badge/redirect/gh/andrewdelong/twobitreader-rust/tree/main">
+//!   <img align="right"
+//!        src="https://dl.circleci.com/status-badge/img/gh/andrewdelong/twobitreader-rust/tree/main.svg?style=shield&circle-token=866d66445adcd45b6a135f83a6211987fa1c4cf3"/>
+//! </a>
+//!
 //! This crate provides fast DNA sequence extraction from 2bit files, a
 //! [standard format](http://genome.ucsc.edu/FAQ/FAQformat.html#format7) in bioinformatics.
 //!
@@ -10,12 +14,6 @@
 //! Extracting sequences is consistently faster than the best alternative.
 //! The focus is raw reading from 2bit, but fast concatenation and reverse-complement methods
 //! are also provided to make higher-level use cases easier.
-//!
-//! Tested on Linux, Mac, and Windows:
-//! <a href="https://dl.circleci.com/status-badge/redirect/gh/andrewdelong/twobitreader-rust/tree/main">
-//!   <img style="vertical-align:middle; margin-top:-2px;"
-//!        src="https://dl.circleci.com/status-badge/img/gh/andrewdelong/twobitreader-rust/tree/main.svg?style=shield&circle-token=866d66445adcd45b6a135f83a6211987fa1c4cf3"/>
-//! </a>
 //!
 //! # Examples
 //!
