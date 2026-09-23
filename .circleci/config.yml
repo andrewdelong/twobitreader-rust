@@ -35,8 +35,8 @@ jobs:
           name: Build release
           command: cargo build --release
       - run:
-          name: Run benchmarks
-          command: cargo bench
+          name: Build benchmarks
+          command: cargo bench --no-run
       - run:
           name: Run linter
           command: cargo clippy --no-deps
@@ -74,7 +74,7 @@ jobs:
       - run:
           name: Install rust toolchain
           command: |
-            ./rustup -y --verbose
+            bash rustup -y --verbose
             source ~/.cargo/env
             cargo --version
             rustc --version
@@ -97,8 +97,8 @@ jobs:
           name: Build release
           command: cargo build --release
       - run:
-          name: Run benchmarks
-          command: cargo bench
+          name: Build benchmarks
+          command: cargo bench --no-run
       - run:
           name: Run linter
           command: cargo clippy --no-deps
@@ -126,12 +126,12 @@ jobs:
   build-windows-x86:
     executor:
       name: windows/default
-      size: large
+    shell: cmd.exe /c
     steps:
       - checkout
       - run:
           name: Download rustup
-          command: curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64
+          command: curl.exe -sSfLo rustup-init.exe https://win.rustup.rs/x86_64
       - run:
           name: Install rust toolchain
           command: |
@@ -159,8 +159,8 @@ jobs:
           name: Build release
           command: cargo build --release
       - run:
-          name: Run benchmarks
-          command: cargo bench
+          name: Build benchmarks
+          command: cargo bench --no-run
       - run:
           name: Run linter
           command: cargo clippy --no-deps
