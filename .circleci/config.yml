@@ -8,7 +8,7 @@ jobs:
     resource_class:
       large
     docker:
-      - image: cimg/rust:1.70
+      - image: cimg/rust:1.98
     steps:
       - checkout
       - run:
@@ -58,7 +58,7 @@ jobs:
             - target/doc
             - tests/assets/hg38.p13.2bit
 
-  build-macos-x86:
+  build-macos-m4:
     resource_class:
       m4pro.medium
     macos:
@@ -181,5 +181,5 @@ workflows:
   build-all:
     jobs:
       - build-linux-x86
-      - build-macos-x86
+      - build-macos-m4
       - build-windows-x86

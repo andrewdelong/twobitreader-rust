@@ -1,27 +1,26 @@
 # twobitreader
 
+<a href="https://dl.circleci.com/status-badge/redirect/gh/andrewdelong/twobitreader-rust/tree/main">
+  <img align="right"
+       src="https://dl.circleci.com/status-badge/img/gh/andrewdelong/twobitreader-rust/tree/main.svg?style=shield&circle-token=866d66445adcd45b6a135f83a6211987fa1c4cf3"/>
+</a>
+
 This crate provides fast DNA sequence extraction from 2bit files, a
 [standard format](http://genome.ucsc.edu/FAQ/FAQformat.html#format7) in bioinformatics.
 
 The motivation for this crate is speed.
-Extracting sequences is 1.5-30x faster than the best alternative, depending on use case.
-
-Tested on Linux, Mac, and Windows:
-<a href="https://dl.circleci.com/status-badge/redirect/gh/andrewdelong/twobitreader-rust/tree/main">
-  <img style="vertical-align:middle; margin-top:-2px;"
-       src="https://dl.circleci.com/status-badge/img/gh/andrewdelong/twobitreader-rust/tree/main.svg?style=shield&circle-token=866d66445adcd45b6a135f83a6211987fa1c4cf3"/>
-</a>
+Extracting sequences is consistently faster than the best alternative.
 
 ## Examples
 
-**Extracting sequences** is straightforward with [`TwobitReader`]:
+**Extracting sequences** is straightforward with `TwobitReader`:
 ```rust
 let tbr = TwobitReader::open("hg38.2bit")?;  // Human genome, build 38
 let seq = tbr.get("chr1", 10000, 10005);     // -> String ("TAACC")
 ```
 
 **Concatenation** works by iterating over (start, end) pairs.
-For example, assembling a spliced transcript:
+For example, assembling a spliced transcript on the '+' strand:
 ```rust
 // Exon ranges for human FKHL6 gene transcript (Gencode v43)
 let exons = [(1389575, 1391118),              // Exon 1 (start, end)
@@ -54,8 +53,10 @@ let transcripts = [                   // (transcript_id, chromosome, exons)
                                             (272036, 272557)]),   // Exon 3
     ("ENST00000319331.4", "chr3", '+', vec![(3799430, 3799919),   // Exon 1
                                             (3844363, 3849834)]), // Exon 2
-    /* ... assume exons are listed in genomic-coordinate order */
+    /* ... */
 ];
+// Concatenate exons and then reverse-complement if necessary.
+// (Correct if exons listed in genome-coordinate order.)
 let seqs = transcripts.into_par_iter()
     .map(|(id, chrom, strand, exons)| (id, stranded(tbr.concat(chrom, exons), strand)))
     .collect::<HashMap<_, _>>();       // HashMap<&str, String>
@@ -63,12 +64,12 @@ let seq = &seqs["ENST00000407983.7"];  // -> &String to transcript sequence
 ```
 
 **Cold files** are an order of magnitude slower to access than files already in memory ("hot").
-Use [`prefetch`](TwobitReader::prefetch) to dramatically improve single-threaded speed:
+Use prefetching to dramatically improve single-threaded speed on cold files:
 ```rust
 let exons = [("chr1", 10000, 10200),
              ("chr1", 10500, 10700), /* ... */ ];
-tbr.prefetch(&exons);  // Tell the operating system to start paging in this data from disk
-let seqs = tbr.get_batch(&exons);
+tbr.prefetch(&exons);              // Ask the operating system to start paging this data from disk
+let seqs = tbr.get_batch(&exons);  // Start decoding
 ```
 
 ## Speed
