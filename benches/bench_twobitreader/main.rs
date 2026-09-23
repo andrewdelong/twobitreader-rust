@@ -1,4 +1,4 @@
-use twobitreader::TwobitReader;
+use twobitreader::{TwobitReader, reverse_complement};
 
 // Standard library
 use std::collections::HashMap;
@@ -14,7 +14,6 @@ use util::*;
 // Dependencies
 use rayon::prelude::*;
 use rayon::ThreadPoolBuilder;
-use seq_macro::seq;
 
 // Which cache scenario to simulate in the benchmark run.
 #[derive(Clone, Copy, PartialEq)]
@@ -44,32 +43,14 @@ fn setup(cache: Cache) -> Result<PathBuf, Box<dyn Error>> {
     }
 }
 
-const NUC_COMPLEMENT_U8: [u8; 256] = seq!(i in 0..256 {[#(
-    match i {
-       b'A' => b'T', b'a' => b't',
-       b'C' => b'G', b'c' => b'g',
-       b'G' => b'C', b'g' => b'c',
-       b'T' => b'A', b't' => b'a',
-       b'N' => b'N', b'n' => b'n',
-       _    => b'?',
-    },
-)*]});
-
-fn apply_strand(mut dna: String, strand: char) -> String {
-    // SAFETY: this is safe if dna contains ACGTN bytes, as the buffer will remain
-    // valid utf8 at every step.
+fn apply_strand(dna: String, strand: char) -> String {
     if strand == '-' {
-        if !dna.is_empty() {
-            let buf = unsafe { dna.as_mut_vec() };
-            buf.reverse();
-            for byte in buf {
-                *byte = NUC_COMPLEMENT_U8[*byte as usize];
-            }
-        }
+        reverse_complement(dna)
     } else {
         assert_eq!(strand, '+', "Invalid strand '{strand}'");
+        dna
     }
-    dna
+    
 }
 
 // Load hg38 and time processing the header

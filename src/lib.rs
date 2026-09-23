@@ -65,24 +65,30 @@
 //! # use std::collections::HashMap;
 //! # use twobitreader::TwobitReader;
 //! # let tbr = TwobitReader::open("hg38.2bit")?;
+//! use twobitreader::reverse_complement;
 //! use rayon::prelude::*;
-//! let transcripts = [              // (transcript_id, chromosome, exons)
-//!     ("ENST00000407983.7", "chr2", vec![(264899, 265007),     // Exon 1
-//!                                        (271865, 271939),     // Exon 2
-//!                                        (272036, 272557)]),   // Exon 3
-//!     ("ENST00000319331.4", "chr3", vec![(3799430, 3799919),   // Exon 1
-//!                                        (3844363, 3849834)]), // Exon 2
-//!     /* ... */
+//! 
+//! fn stranded(seq: String, strand: char) -> String {
+//!     if strand == '+' { seq } else { reverse_complement(seq) }
+//! }
+//! 
+//! let transcripts = [                   // (transcript_id, chromosome, exons)
+//!     ("ENST00000407983.7", "chr2", '+', vec![(264899, 265007),     // Exon 1
+//!                                             (271865, 271939),     // Exon 2
+//!                                             (272036, 272557)]),   // Exon 3
+//!     ("ENST00000319331.4", "chr3", '+', vec![(3799430, 3799919),   // Exon 1
+//!                                             (3844363, 3849834)]), // Exon 2
+//!     /* ... assume exons are listed in genomic-coordinate order */
 //! ];
 //! let seqs = transcripts.into_par_iter()
-//!     .map(|(id, chrom, exons)| (id, tbr.concat(chrom, exons)))
+//!     .map(|(id, chrom, strand, exons)| (id, stranded(tbr.concat(chrom, exons), strand)))
 //!     .collect::<HashMap<_, _>>();       // HashMap<&str, String>
 //! let seq = &seqs["ENST00000407983.7"];  // -> &String to transcript sequence
 //! # Ok::<(), io::Error>(())
 //! ```
 //!
 //! **Cold files** are an order of magnitude slower to access than files already in memory ("hot").
-//! Use [`prefetch`](TwobitReader::prefetch) to dramatically improve speed:
+//! Use [`prefetch`](TwobitReader::prefetch) to dramatically improve single-threaded speed:
 //! ```no_run
 //! # use std::io;
 //! # use twobitreader::TwobitReader;
@@ -93,7 +99,6 @@
 //! let seqs = tbr.get_batch(&exons);
 //! # Ok::<(), io::Error>(())
 //! ```
-//! (Note that decoding across parallel threads mostly obviates the need to prefetch.)
 //!
 //! # Speed
 //!
@@ -159,6 +164,7 @@ use prefetch::PrefetchBatcher;
 // Dependencies
 use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt};
 use memmap2::{Mmap, MmapOptions};
+use seq_macro::seq;
 
 // Big-endian 2bit files are supported by this crate, but big-endian compile targets are not.
 #[cfg(target_endian = "big")]
@@ -334,10 +340,6 @@ impl TwobitReader {
     /// # Ok::<(), io::Error>(())
     /// ```
     ///
-    /// # Panics
-    ///
-    /// See [`get`](Self::get).
-    ///
     pub fn get_into<N: AsRef<str>>(&self, name: N, start: usize, end: usize, dst: &mut String) {
         // Check range before trying to do any might-panic arithmetic with (start, end)
         let seq = self.get_seq_data_by_name(name);
@@ -363,10 +365,6 @@ impl TwobitReader {
     /// let seq = tbr.get_batch(&exons);
     /// # Ok::<(), io::Error>(())
     /// ```
-    ///
-    /// # Panics
-    ///
-    /// See [`get`](Self::get).
     ///
     pub fn get_batch<'a, N, T, I>(&'a self, batch: I) -> impl Iterator<Item = String> + 'a
     where
@@ -396,10 +394,6 @@ impl TwobitReader {
     /// # Ok::<(), io::Error>(())
     /// ```
     ///
-    /// # Panics
-    ///
-    /// See [`get`](Self::get).
-    ///
     pub fn get_inclusive<N: AsRef<str>>(&self, name: N, start: usize, end: usize) -> String {
         // Check valid start and then convert range to 0-based exclusive.
         check_start_inclusive(start, 1);
@@ -419,10 +413,6 @@ impl TwobitReader {
     /// tbr.get_inclusive_into("chr2", 10001, 10010, &mut dst);  // dst = "CGTATCCCAC"
     /// # Ok::<(), io::Error>(())
     /// ```
-    ///
-    /// # Panics
-    ///
-    /// See [`get`](Self::get).
     ///
     pub fn get_inclusive_into<N: AsRef<str>>(&self, name: N, start: usize, end: usize, dst: &mut String) {
         // Check valid start and then convert range to 0-based exclusive.
@@ -444,10 +434,6 @@ impl TwobitReader {
     /// let seq = tbr.get_batch_inclusive(&exons);
     /// # Ok::<(), io::Error>(())
     /// ```
-    ///
-    /// # Panics
-    ///
-    /// See [`get`](Self::get).
     ///
     pub fn get_batch_inclusive<'a, N, T, I>(&'a self, batch: I) -> impl Iterator<Item = String> + 'a
     where
@@ -535,10 +521,6 @@ impl TwobitReader {
     /// let seq = tbr.concat_iter("chr2", zip(starts, ends));  // "CGTATCCCAC"
     /// # Ok::<(), io::Error>(())
     /// ```
-    /// 
-    /// # Panics
-    ///
-    /// See [`concat`](Self::concat)`.
     ///
     pub fn concat_iter<N, I>(&self, name: N, ranges: I) -> String
     where
@@ -574,10 +556,6 @@ impl TwobitReader {
     /// # Ok::<(), io::Error>(())
     /// ```
     ///
-    /// # Panics
-    ///
-    /// See [`concat`](Self::concat)`.
-    ///
     pub fn concat_inclusive<N, R>(&self, name: N, ranges: R) -> String
     where
         N: AsRef<str>,
@@ -601,10 +579,6 @@ impl TwobitReader {
     /// let seq = tbr.concat_iter_inclusive("chr2", zip(starts, ends));  // "CGTATCCCAC"
     /// # Ok::<(), io::Error>(())
     /// ```
-    ///
-    /// # Panics
-    ///
-    /// See [`concat`](Self::concat)`.
     ///
     pub fn concat_iter_inclusive<N, I>(&self, name: N, ranges: I) -> String
     where
@@ -981,4 +955,36 @@ fn mask_fill(dna: &mut [u8]) {
         debug_assert!(*nuc >= b'A' && *nuc <= b'Z');
         *nuc += b'a' - b'A';
     }
+}
+
+// Compile-time generated lookup table of nucleotide complements for all u8 byte values.
+const NUC_COMPLEMENT_U8: [u8; 256] = seq!(i in 0..256 {[#(
+    match i {
+       b'A' => b'T', b'a' => b't',
+       b'C' => b'G', b'c' => b'g',
+       b'G' => b'C', b'g' => b'c',
+       b'T' => b'A', b't' => b'a',
+       b'N' => b'N', b'n' => b'n',
+       _    => b'?',
+    },
+)*]});
+
+/// Returns a reverse-complemented version of the input sequence.
+///
+/// Useful for higher-level code that wants to assemble strand-sensitive transcripts.
+///
+/// Note that `seq`` must contain only characters from `ACGTNacgtn`.
+/// The string is modified in-place and returned, so no allocation takes place.
+pub fn reverse_complement(mut seq: String) -> String {
+    // SAFETY: this is safe if dna contains ACGTN bytes, as the buffer will remain
+    // valid utf8 at every step.
+    if !seq.is_empty() {
+        let buf = unsafe { seq.as_mut_vec() };
+        buf.reverse();
+        for byte in buf {
+            *byte = NUC_COMPLEMENT_U8[*byte as usize];
+        }
+    }
+    debug_assert!(!seq.contains('?'), "Invalid character detected in DNA string.");
+    seq
 }
