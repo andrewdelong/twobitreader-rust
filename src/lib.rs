@@ -155,7 +155,6 @@ use std::mem::MaybeUninit;
 use std::ops::Range;
 use std::path::Path;
 use std::sync::OnceLock;
-use std::vec;
 
 // Crate modules
 mod decode;
@@ -226,8 +225,8 @@ impl TwobitReader {
     /// ```no_run
     /// # use std::io;
     /// # use twobitreader::TwobitReader;
-    /// let tbr = TwobitReader::open("hg38.2bit")?;  // Human genome, build 38
-    /// let seq = tbr.get("chr2", 10000, 10010);     // "CGTATCCCAC"
+    /// let tbr = TwobitReader::open("hg38.2bit")?; // Human genome, build 38
+    /// let seq = tbr.get("chr2", 10000, 10010);    // -> "CGTATCCCAC"
     /// # Ok::<(), io::Error>(())
     /// ```
     pub fn open<P: AsRef<Path>>(path: P) -> io::Result<Self> {
@@ -247,8 +246,8 @@ impl TwobitReader {
     /// ```no_run
     /// # use std::io;
     /// # use twobitreader::TwobitReader;
-    /// let tbr = TwobitReader::open_masked("hg38.2bit")?;  // Human genome, build 38
-    /// let seq = tbr.get("chr2", 10000, 10010);            // "CGTATcccac" (mixed case)
+    /// let tbr = TwobitReader::open_masked("hg38.2bit")?; // Human genome, build 38
+    /// let seq = tbr.get("chr2", 10000, 10010);           // -> "CGTATcccac" (mixed case)
     /// # Ok::<(), io::Error>(())
     /// ```
     pub fn open_masked<P: AsRef<Path>>(path: P) -> io::Result<Self> {
@@ -314,7 +313,7 @@ impl TwobitReader {
     /// # use std::io;
     /// # use twobitreader::TwobitReader;
     /// let tbr = TwobitReader::open("hg38.2bit")?;
-    /// let seq = tbr.get("chr2", 10000, 10010);     // "CGTATCCCAC"
+    /// let seq = tbr.get("chr2", 10000, 10010); // -> "CGTATCCCAC"
     /// # Ok::<(), io::Error>(())
     /// ```
     ///
@@ -338,9 +337,13 @@ impl TwobitReader {
     /// # use twobitreader::TwobitReader;
     /// let tbr = TwobitReader::open("hg38.2bit")?;
     /// let mut dst = String::new();
-    /// tbr.get_into("chr2", 10000, 10010, &mut dst);  // dst = "CGTATCCCAC"
+    /// tbr.get_into("chr2", 10000, 10010, &mut dst); // dst = "CGTATCCCAC"
     /// # Ok::<(), io::Error>(())
     /// ```
+    ///
+    /// # Panics
+    ///
+    /// See [`get`](Self::get).
     ///
     pub fn get_into<N: AsRef<str>>(&self, name: N, start: usize, end: usize, dst: &mut String) {
         // Check range before trying to do any might-panic arithmetic with (start, end)
@@ -348,10 +351,12 @@ impl TwobitReader {
         check_range(seq, start, end);
 
         // Prepare an empty buffer with sufficient capacity.
+        // SAFETY: clearing dst ensures that its visible portion remains valid utf8
+        // until decode_and_append lengthens it.
         dst.clear();
-        let mut buf = unsafe { dst.as_mut_vec() };
+        let buf = unsafe { dst.as_mut_vec() };
         buf.reserve_exact(end - start);
-        self.decode_and_append(seq, start, end, &mut buf);
+        self.decode_and_append(seq, start, end, buf);
     }
 
     /// Returns an iterator that calls [`get`](Self::get) for each query in the batch, for convenience.
@@ -367,6 +372,10 @@ impl TwobitReader {
     /// let seq = tbr.get_batch(&exons);
     /// # Ok::<(), io::Error>(())
     /// ```
+    ///
+    /// # Panics
+    ///
+    /// See [`get`](Self::get).
     ///
     pub fn get_batch<'a, N, T, I>(&'a self, batch: I) -> impl Iterator<Item = String> + 'a
     where
@@ -392,9 +401,13 @@ impl TwobitReader {
     /// # use std::io;
     /// # use twobitreader::TwobitReader;
     /// let tbr = TwobitReader::open("hg38.2bit")?;
-    /// let seq = tbr.get("chr2", 10001, 10010);  // "CGTATCCCAC"
+    /// let seq = tbr.get_inclusive("chr2", 10001, 10010); // -> "CGTATCCCAC"
     /// # Ok::<(), io::Error>(())
     /// ```
+    ///
+    /// # Panics
+    ///
+    /// See [`get`](Self::get).
     ///
     pub fn get_inclusive<N: AsRef<str>>(&self, name: N, start: usize, end: usize) -> String {
         // Check valid start and then convert range to 0-based exclusive.
@@ -412,9 +425,13 @@ impl TwobitReader {
     /// # use twobitreader::TwobitReader;
     /// let tbr = TwobitReader::open("hg38.2bit")?;
     /// let mut dst = String::new();
-    /// tbr.get_inclusive_into("chr2", 10001, 10010, &mut dst);  // dst = "CGTATCCCAC"
+    /// tbr.get_inclusive_into("chr2", 10001, 10010, &mut dst); // dst = "CGTATCCCAC"
     /// # Ok::<(), io::Error>(())
     /// ```
+    ///
+    /// # Panics
+    ///
+    /// See [`get`](Self::get).
     ///
     pub fn get_inclusive_into<N: AsRef<str>>(&self, name: N, start: usize, end: usize, dst: &mut String) {
         // Check valid start and then convert range to 0-based exclusive.
@@ -436,6 +453,10 @@ impl TwobitReader {
     /// let seq = tbr.get_batch_inclusive(&exons);
     /// # Ok::<(), io::Error>(())
     /// ```
+    ///
+    /// # Panics
+    ///
+    /// See [`get`](Self::get).
     ///
     pub fn get_batch_inclusive<'a, N, T, I>(&'a self, batch: I) -> impl Iterator<Item = String> + 'a
     where
@@ -459,9 +480,13 @@ impl TwobitReader {
     /// # use twobitreader::TwobitReader;
     /// let tbr = TwobitReader::open("hg38.2bit")?;
     /// let ranges = [(10000, 10006), (10006, 10010)]; // "CGTATC" "CCAC"
-    /// let seq = tbr.concat("chr2", &ranges);         // "CGTATCCCAC"
+    /// let seq = tbr.concat("chr2", &ranges);         // -> "CGTATCCCAC"
     /// # Ok::<(), io::Error>(())
     /// ```
+    ///
+    /// This version performs one allocation only, of the required total length.
+    /// However, it requires `ranges` to be iterable twice.
+    /// See [`concat_iter`](Self::concat_iter) for a version that grows rather than pre-allocates.
     ///
     /// # Panics
     ///
@@ -499,12 +524,12 @@ impl TwobitReader {
         buf.reserve_exact(total_len);
 
         // Decode each interval into its respective slice of the buffer.
-        for &(start, end) in ranges.into_iter() {
+        for &(start, end) in ranges.iter() {
             self.decode_and_append(seq, start - base, end, &mut buf);
         }
 
-        // SAFETY: buf was initialized to zeros, and all decoded bytes are ASCII, so there
-        // is no way for buf to contain invalid utf8.
+        // SAFETY: buf is valid utf8 here because decode_and_append writes through whatever spare
+        // capacity it adds before setting the length.
         debug_assert!(buf.is_ascii(), "decoded nucleotides were not valid ascii");
         unsafe { String::from_utf8_unchecked(buf) }
     }
@@ -520,9 +545,15 @@ impl TwobitReader {
     /// let tbr = TwobitReader::open("hg38.2bit")?;
     /// let starts = [10000, 10006];
     /// let ends = [10006, 10010];
-    /// let seq = tbr.concat_iter("chr2", zip(starts, ends));  // "CGTATCCCAC"
+    /// let seq = tbr.concat_iter("chr2", zip(starts, ends)); // -> "CGTATCCCAC"
     /// # Ok::<(), io::Error>(())
     /// ```
+    ///
+    /// This version iterates through `ranges` exactly once, growing the output String as needed.
+    ///
+    /// # Panics
+    ///
+    /// See [`concat`](Self::concat).
     ///
     pub fn concat_iter<N, I>(&self, name: N, ranges: I) -> String
     where
@@ -535,7 +566,7 @@ impl TwobitReader {
         // Decode each interval into its respective slice of the buffer.
         for (start, end) in ranges.into_iter() {
             check_range(seq, start, end);
-            buf.reserve_exact(end - start);
+            buf.reserve(end - start);
             self.decode_and_append(seq, start, end, &mut buf);
         }
 
@@ -553,10 +584,14 @@ impl TwobitReader {
     /// # use std::io;
     /// # use twobitreader::TwobitReader;
     /// let tbr = TwobitReader::open("hg38.2bit")?;
-    /// let ranges = [(10001, 10006), (10007, 10010)];        // "CGTATC" "CCAC"
-    /// let seq = tbr.concat_iter_inclusive("chr2", ranges);  // "CGTATCCCAC"
+    /// let ranges = [(10001, 10006), (10007, 10010)];  // "CGTATC" "CCAC"
+    /// let seq = tbr.concat_inclusive("chr2", ranges); // -> "CGTATCCCAC"
     /// # Ok::<(), io::Error>(())
     /// ```
+    ///
+    /// # Panics
+    ///
+    /// See [`concat`](Self::concat).
     ///
     pub fn concat_inclusive<N, R>(&self, name: N, ranges: R) -> String
     where
@@ -578,9 +613,13 @@ impl TwobitReader {
     /// let tbr = TwobitReader::open("hg38.2bit")?;
     /// let starts = [10001, 10007];
     /// let ends = [10006, 10010];
-    /// let seq = tbr.concat_iter_inclusive("chr2", zip(starts, ends));  // "CGTATCCCAC"
+    /// let seq = tbr.concat_iter_inclusive("chr2", zip(starts, ends)); // -> "CGTATCCCAC"
     /// # Ok::<(), io::Error>(())
     /// ```
+    ///
+    /// # Panics
+    ///
+    /// See [`concat`](Self::concat).
     ///
     pub fn concat_iter_inclusive<N, I>(&self, name: N, ranges: I) -> String
     where
@@ -621,7 +660,7 @@ impl TwobitReader {
     ///
     /// # Panics
     ///
-    /// Panics if any sequence name was not found.
+    /// Panics if any sequence name was not found or if `start > end``.
     /// Panics if an IO error occurs while processing any newly-accessed sequence records.
     ///
     pub fn prefetch<N, T, I>(&self, args: I)
@@ -634,7 +673,6 @@ impl TwobitReader {
         let mut ranges_by_seq: Vec<Vec<Range<usize>>> = self.seqs.iter().map(|_| Vec::new()).collect();
         for item in args.into_iter() {
             let (name, start, end) = item.borrow();
-            assert!(start <= end, "invalid range (start > end)");
             let seq_index = self.seq_by_name.get(name.as_ref()).expect("sequence name not found");
             ranges_by_seq[*seq_index].push(*start..*end);
         }
@@ -682,6 +720,7 @@ impl TwobitReader {
             let seq = self.get_seq_data_by_index(seq_index);
             for range in ranges.iter_mut() {
                 if range.start < range.end {
+                    check_range(seq, range.start, range.end);
                     let first_byte = seq.dna_offset + range.start / NUCS_PER_U8;
                     let last_byte = seq.dna_offset + range.end.div_ceil(NUCS_PER_U8);
                     prefetch.push(first_byte..last_byte);
@@ -702,15 +741,18 @@ impl TwobitReader {
     // Panics if no sequence record has that name.
     fn get_seq_data_by_index(&self, index: usize) -> &TwobitSequenceData {
         let seq = &self.seqs[index];
-        &seq.data.get_or_init(|| read_seq_data(&self.mmap, self.masked, self.endianness, seq.data_offset))
+        seq.data.get_or_init(|| read_seq_data(&self.mmap, self.masked, self.endianness, seq.data_offset))
     }
 
     // Decodes sequence [start..end] and appends it to dst.
-    // Note: dst must already have the capacity to hold the decoded bytes.
+    // Requires dst to already have the capacity to hold the decoded bytes.
     fn decode_and_append(&self, seq: &TwobitSequenceData, start: usize, end: usize, dst: &mut Vec<u8>) {
         if start >= end {
             return;
         }
+
+        // Check that capacity is already sufficient.
+        debug_assert!(dst.capacity() - dst.len() >= end - start);
 
         // Slice spanning all packed 2bit DNA data for this sequence record.
         let dna = &self.mmap[seq.dna_offset..seq.dna_offset + seq.dna_bytes];
@@ -765,7 +807,8 @@ fn check_range(seq: &TwobitSequenceData, start: usize, end: usize) {
 #[inline]
 fn check_start_inclusive(start: usize, base: usize) {
     if start < base {
-        panic!("invalid start (start = 0)");
+        debug_assert_eq!(base, 1, "expected base=1 but found {base}");
+        panic!("invalid start (0) for 1-based range");
     }
 }
 
@@ -882,12 +925,12 @@ fn read_seq_data_endian<B: ByteOrder>(mmap: &Mmap, masked: bool, data_offset: u6
 // Reads a Twobit block section from the given cursor, returning a Blocks struct.
 // If used=false, then the cursor is simply advanced, and an empty Blocks struct is returned.
 fn read_blocks<B: ByteOrder>(cursor: &mut Cursor<&Mmap>, used: bool) -> Blocks {
-    let num_blocks = cursor.read_u32::<B>().expect("Failed to read number of blocks form 2bit file.") as usize;
+    let num_blocks = cursor.read_u32::<B>().expect("Failed to read number of blocks from 2bit file.") as usize;
     let mut starts = Vec::new();
     let mut ends = Vec::new();
 
     // Check to avoid huge allocation on corrupt or malicious block count.
-    assert!(2 * num_blocks * size_of::<u32>() < cursor.get_ref().len(), "num_blocks too large, may be corrupt");
+    assert!(2 * num_blocks * size_of::<u32>() <= cursor.get_ref().len(), "num_blocks too large, may be corrupt");
 
     if used {
         // Read starts.
@@ -980,8 +1023,11 @@ const NUC_COMPLEMENT_U8: [u8; 256] = seq!(i in 0..256 {[#(
 ///
 /// Useful for higher-level code that wants to assemble strand-sensitive transcripts.
 ///
-/// Note that `seq`` must contain only characters from `ACGTNacgtn`.
 /// The string is modified in-place and returned, so no allocation takes place.
+///
+/// Note that `seq` must contain only characters from `ACGTNacgtn`; otherwise,
+/// the invalid character will asserted (debug) or replaced with '?' (release).
+///
 pub fn reverse_complement(mut seq: String) -> String {
     // SAFETY: this is safe if dna contains ACGTN bytes, as the buffer will remain
     // valid utf8 at every step.
@@ -992,6 +1038,6 @@ pub fn reverse_complement(mut seq: String) -> String {
             *byte = NUC_COMPLEMENT_U8[*byte as usize];
         }
     }
-    debug_assert!(!seq.contains('?'), "Invalid character detected in DNA string.");
+    debug_assert!(!seq.contains('?'), "invalid character in DNA string.");
     seq
 }

@@ -1,4 +1,4 @@
-use twobitreader::TwobitReader;
+use twobitreader::{reverse_complement, TwobitReader};
 
 // Standard library
 use std::collections::HashMap;
@@ -51,15 +51,18 @@ fn test_truncated_dna_error() {
 }
 
 #[rustfmt::skip]
-fn test_tiny<P: AsRef<Path>>(path: P) -> Result<(), Box<dyn Error>> {
-    let tbr = TwobitReader::open_masked(path)?;
+fn test_tiny<P: AsRef<Path>>(path: P, masked: bool) -> Result<(), Box<dyn Error>> {
+    let tbr = if masked { TwobitReader::open_masked(path)} else { TwobitReader::open(path) }?;
 
     // Reproduce the expected contents of tiny.2bit file here, as strings.
     let expect_names = vec!["seq_xy", "seq_abc"];
-    let expect_seqs = vec![
-        "gTCCTGCTccaGAAGCAATAACTGATAACNNNNnnnngatcaGCAAGACAATTGAAGAAt",
-        "NNGCTgtgcanNNNNNGACTCCTAcctcnn",
-    ];
+    let expect_seqs = if masked {
+        vec!["gTCCTGCTccaGAAGCAATAACTGATAACNNNNnnnngatcaGCAAGACAATTGAAGAAt",
+             "NNGCTgtgcanNNNNNGACTCCTAcctcnn"]
+    } else {
+        vec!["GTCCTGCTCCAGAAGCAATAACTGATAACNNNNNNNNGATCAGCAAGACAATTGAAGAAT",
+             "NNGCTGTGCANNNNNNGACTCCTACCTCNN"]
+    };
     let expect_twobit = zip(expect_names.iter().copied(), expect_seqs.iter().copied()).collect::<HashMap<_, _>>();
 
     // Test names and iter_names
@@ -87,7 +90,7 @@ fn test_tiny<P: AsRef<Path>>(path: P) -> Result<(), Box<dyn Error>> {
 
     // Iterator over all possible subsequences
     let windows = expect_twobit.iter().flat_map(|(name, seq)| {
-        (0..seq.len()).flat_map(move |window_size| {
+        (0..=seq.len()).flat_map(move |window_size| {
             (0..seq.len() - window_size + 1).map(move |start| {
                 (*name, start, start + window_size)
             })
@@ -115,7 +118,7 @@ fn test_tiny<P: AsRef<Path>>(path: P) -> Result<(), Box<dyn Error>> {
     tbr.prefetch(windows.clone());  // Consumed
     
     // Test concat with zip (from iterator, from collection)
-    let expect = "aACNNNcaGCATTGA";
+    let expect = if masked { "aACNNNcaGCATTGA" } else { "AACNNNCAGCATTGA" };
     let starts = [0, 10, 20, 30, 40, 50];
     let ends   = [0, 11, 22, 33, 44, 55];
     let ranges_iter = zip(starts, ends);
@@ -160,13 +163,23 @@ fn test_tiny<P: AsRef<Path>>(path: P) -> Result<(), Box<dyn Error>> {
 // Run test_tiny on the little-endian version of test.2bit
 #[test]
 fn test_tiny_lilend() -> Result<(), Box<dyn Error>> {
-    test_tiny("tests/assets/tiny-lilend.2bit")
+    test_tiny("tests/assets/tiny-lilend.2bit", false)
+}
+
+#[test]
+fn test_tiny_lilend_masked() -> Result<(), Box<dyn Error>> {
+    test_tiny("tests/assets/tiny-lilend.2bit", true)
 }
 
 // Run test_tiny on the big-endian version of test.2bit
 #[test]
 fn test_tiny_bigend() -> Result<(), Box<dyn Error>> {
-    test_tiny("tests/assets/tiny-bigend.2bit")
+    test_tiny("tests/assets/tiny-bigend.2bit", false)
+}
+
+#[test]
+fn test_tiny_bigend_masked() -> Result<(), Box<dyn Error>> {
+    test_tiny("tests/assets/tiny-bigend.2bit", true)
 }
 
 #[test]
@@ -239,4 +252,39 @@ fn test_hg38() -> Result<(), Box<dyn Error>> {
         assert_eq!(r.get(&chrom, start, end), seq);
     }
     Ok(())
+}
+
+#[test]
+fn test_reverse_complement() {
+    let check_pair = |x: &str, y: &str| {
+        assert_eq!(*x, reverse_complement(y.to_string()));
+        assert_eq!(*y, reverse_complement(x.to_string()));
+    };
+
+    check_pair("", "");
+    check_pair("A", "T");
+    check_pair("C", "G");
+    check_pair("N", "N");
+    check_pair("a", "t");
+    check_pair("c", "g");
+    check_pair("n", "n");
+    check_pair("AC", "GT");
+    check_pair("ac", "gt");
+    check_pair("ACG", "CGT");
+    check_pair("acg", "cgt");
+    check_pair("ACGT", "ACGT");
+    check_pair("acgt", "acgt");
+    check_pair("ACGTN", "NACGT");
+    check_pair("acgtn", "nacgt");
+    check_pair(
+        "ACGTNaaccggttnnAAACCCGGGTTTNNNaaaaccccggggttttnnnn",
+        "nnnnaaaaccccggggttttNNNAAACCCGGGTTTnnaaccggttNACGT",
+    );
+}
+
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic(expected = "invalid character")]
+fn test_reverse_complement_invalid() {
+    let _ = reverse_complement("ACGTCXACGT".to_string());
 }

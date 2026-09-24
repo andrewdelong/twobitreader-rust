@@ -12,7 +12,7 @@ pub(crate) const BITS_PER_NUC: usize = 2;
 pub(crate) const NUCS_PER_U8: usize = BITS_PER_U8 / BITS_PER_NUC;
 
 // Lookup table to decode two bits into an ASCII character: T=00 C=01 A=10 G=11.
-const DECODE_U2: [u8; 4] = [b'T', b'C', b'A', b'G'];
+const DECODE_U2: [u8; 4] = *b"TCAG";
 
 // Lookup table to decode eight bits into four ASCII characters at once.
 // For example, DECODE_U8[0b_11_00_00_10] gives a u32 representing 'GTTA'.

@@ -8,7 +8,7 @@ description = "Fast 2bit file reader"
 repository = "https://github.com/andrewdelong/twobitreader-rust"
 license = "MIT OR Apache-2.0"
 keywords = ["2bit", "twobit", "bioinformatics", "file", "library"]
-exclude = ["tests/", "benches/", "doc/", "*.code-workspace", ".*"]
+exclude = ["tests/", "benches/", "doc/", "*.code-workspace", ".*", "BENCH.md"]
 
 [dependencies]
 byteorder = "1"
