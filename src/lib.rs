@@ -674,6 +674,7 @@ impl TwobitReader {
         for item in args.into_iter() {
             let (name, start, end) = item.borrow();
             let seq_index = self.seq_by_name.get(name.as_ref()).expect("sequence name not found");
+            assert!(start <= end, "invalid range (start > end");
             ranges_by_seq[*seq_index].push(*start..*end);
         }
 
@@ -720,7 +721,6 @@ impl TwobitReader {
             let seq = self.get_seq_data_by_index(seq_index);
             for range in ranges.iter_mut() {
                 if range.start < range.end {
-                    check_range(seq, range.start, range.end);
                     let first_byte = seq.dna_offset + range.start / NUCS_PER_U8;
                     let last_byte = seq.dna_offset + range.end.div_ceil(NUCS_PER_U8);
                     prefetch.push(first_byte..last_byte);
