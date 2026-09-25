@@ -9,9 +9,7 @@ Extracting sequences is consistently faster than the best alternative.
 The focus is raw reading from 2bit, but fast concatenation and reverse-complement methods
 are also provided to make higher-level use cases easier.
 
-<a href="https://dl.circleci.com/status-badge/redirect/gh/andrewdelong/twobitreader-rust/tree/main">
-    <img src="https://dl.circleci.com/status-badge/img/gh/andrewdelong/twobitreader-rust/tree/main.svg?style=shield&circle-token=866d66445adcd45b6a135f83a6211987fa1c4cf3"/>
-</a>
+[![CI](https://github.com/andrewdelong/twobitreader-rust/actions/workflows/ci.yml/badge.svg)](https://github.com/andrewdelong/twobitreader-rust/actions/workflows/ci.yml)
 
 ## Examples
 
