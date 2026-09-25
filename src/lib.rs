@@ -2,10 +2,6 @@
 #![deny(missing_docs)]
 #![deny(unreachable_pub)]
 #![warn(rust_2018_idioms)]
-//! <a href="https://dl.circleci.com/status-badge/redirect/gh/andrewdelong/twobitreader-rust/tree/main">
-//!   <img align="right"
-//!        src="https://dl.circleci.com/status-badge/img/gh/andrewdelong/twobitreader-rust/tree/main.svg?style=shield&circle-token=866d66445adcd45b6a135f83a6211987fa1c4cf3"/>
-//! </a>
 //!
 //! This crate provides fast DNA sequence extraction from 2bit files, a
 //! [standard format](http://genome.ucsc.edu/FAQ/FAQformat.html#format7) in bioinformatics.
@@ -15,9 +11,13 @@
 //! The focus is raw reading from 2bit, but fast concatenation and reverse-complement methods
 //! are also provided to make higher-level use cases easier.
 //!
+//! <a href="https://dl.circleci.com/status-badge/redirect/gh/andrewdelong/twobitreader-rust/tree/main">
+//!     <img src="https://dl.circleci.com/status-badge/img/gh/andrewdelong/twobitreader-rust/tree/main.svg?style=shield&circle-token=866d66445adcd45b6a135f83a6211987fa1c4cf3"/>
+//! </a>
+//!
 //! # Examples
 //!
-//! **Extracting sequences** is straightforward with [`TwobitReader`]:
+//! **Extracting sequences** is straightforward:
 //! ```no_run
 //! # use std::io;
 //! # use twobitreader::TwobitReader;
@@ -90,7 +90,7 @@
 //! ```
 //!
 //! **Cold files** are an order of magnitude slower to access than files already in memory ("hot").
-//! Use [`prefetch`](TwobitReader::prefetch) to dramatically improve single-threaded speed:
+//! Use prefetching to dramatically improve single-threaded speed:
 //! ```no_run
 //! # use std::io;
 //! # use twobitreader::TwobitReader;
@@ -1025,8 +1025,8 @@ const NUC_COMPLEMENT_U8: [u8; 256] = seq!(i in 0..256 {[#(
 ///
 /// The string is modified in-place and returned, so no allocation takes place.
 ///
-/// Note that `seq` must contain only characters from `ACGTNacgtn`; otherwise,
-/// the invalid character will asserted (debug) or replaced with '?' (release).
+/// Note that `seq` must contain only characters from `ACGTNacgtn`. Otherwise,
+/// the invalid character will assert (debug) or be replaced with '?' (release).
 ///
 pub fn reverse_complement(mut seq: String) -> String {
     // SAFETY: this is safe if dna contains ACGTN bytes, as the buffer will remain

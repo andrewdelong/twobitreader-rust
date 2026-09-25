@@ -1,9 +1,5 @@
 # twobitreader
 
-<a href="https://dl.circleci.com/status-badge/redirect/gh/andrewdelong/twobitreader-rust/tree/main">
-  <img align="right"
-       src="https://dl.circleci.com/status-badge/img/gh/andrewdelong/twobitreader-rust/tree/main.svg?style=shield&circle-token=866d66445adcd45b6a135f83a6211987fa1c4cf3"/>
-</a>
 
 This crate provides fast DNA sequence extraction from 2bit files, a
 [standard format](http://genome.ucsc.edu/FAQ/FAQformat.html#format7) in bioinformatics.
@@ -13,9 +9,13 @@ Extracting sequences is consistently faster than the best alternative.
 The focus is raw reading from 2bit, but fast concatenation and reverse-complement methods
 are also provided to make higher-level use cases easier.
 
+<a href="https://dl.circleci.com/status-badge/redirect/gh/andrewdelong/twobitreader-rust/tree/main">
+    <img src="https://dl.circleci.com/status-badge/img/gh/andrewdelong/twobitreader-rust/tree/main.svg?style=shield&circle-token=866d66445adcd45b6a135f83a6211987fa1c4cf3"/>
+</a>
+
 ## Examples
 
-**Extracting sequences** is straightforward with [`TwobitReader`]:
+**Extracting sequences** is straightforward:
 ```rust
 let tbr = TwobitReader::open("hg38.2bit")?; // Human genome, build 38
 let seq = tbr.get("chr1", 10000, 10005);    // -> String ("TAACC")
@@ -66,7 +66,7 @@ let seq = &seqs["ENST00000407983.7"]; // -> &String to transcript sequence
 ```
 
 **Cold files** are an order of magnitude slower to access than files already in memory ("hot").
-Use [`prefetch`](TwobitReader::prefetch) to dramatically improve single-threaded speed:
+Use prefetching to dramatically improve single-threaded speed:
 ```rust
 let exons = [("chr1", 10000, 10200),
              ("chr1", 10500, 10700), /* ... */ ];
