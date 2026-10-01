@@ -29,9 +29,9 @@ fn test_malformed_header_error() {
 }
 
 #[test]
-#[should_panic(expected = "Failed to read block")]
+#[should_panic(expected = "num_blocks too large")]
 fn test_truncated_blocks_error() {
-    // File block indices were truncated by end of file
+    // File block indices were truncated by end of file.
     let tbr = TwobitReader::open_masked("tests/assets/malformed-truncated-blocks.2bit").unwrap();
     for name in tbr.iter_names() {
         let seq_len = tbr.seq_len(name);

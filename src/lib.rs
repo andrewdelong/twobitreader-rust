@@ -527,9 +527,13 @@ impl TwobitReader {
             total + end - (start - base)
         });
 
-        // Pre-size a byte buffer to the total length needed.
+        // Pre-size a byte buffer to the total length needed. The total is the sum of
+        // caller-supplied range lengths and so is unbounded; try_reserve_exact turns an
+        // impossible request into a panic that names the size, rather than an abort.
         let mut buf = Vec::<u8>::new();
-        buf.reserve_exact(total_len);
+        if buf.try_reserve_exact(total_len).is_err() {
+            panic!("could not allocate {total_len} bytes for the concatenated sequence");
+        }
 
         // Decode each interval into its respective slice of the buffer.
         for &(start, end) in ranges.iter() {
@@ -574,7 +578,9 @@ impl TwobitReader {
         // Decode each interval into its respective slice of the buffer.
         for (start, end) in ranges.into_iter() {
             check_range(seq, start, end);
-            buf.reserve(end - start);
+            if buf.try_reserve(end - start).is_err() {
+                panic!("could not allocate {} bytes for the concatenated sequence", buf.len() + end - start);
+            }
             decode_and_append(&self.mmap, seq, start, end, &mut buf);
         }
 
@@ -869,6 +875,16 @@ fn read_seqs_endian<B: ByteOrder>(mmap: &Mmap) -> io::Result<Vec<TwobitSequence>
     let num_seqs = cursor.read_u32::<B>()? as usize;
     let _reserved = cursor.read_u32::<B>()?;
 
+    // Reject a sequence count the rest of the file cannot possibly contain, before reserving
+    // anything for it. Each record occupies at least six bytes here: a one-byte name length,
+    // at least one byte of name, and a four-byte offset. Without this, a corrupt or hostile
+    // count of up to u32::MAX would ask the allocator for hundreds of gigabytes.
+    const MIN_BYTES_PER_SEQ: usize = size_of::<u8>() + 1 + size_of::<u32>();
+    let remaining_bytes = cursor.get_ref().len() - cursor.position() as usize;
+    if num_seqs > remaining_bytes / MIN_BYTES_PER_SEQ {
+        return Err(io::Error::new(InvalidData, "sequence count exceeds file size; file may be malformed."));
+    }
+
     // Read each sequence header (name, data_offset).
     // (Deliberate choice not to prefetch; a typical 2bit file's header fits in a single page.)
     let mut seqs = Vec::with_capacity(num_seqs);
@@ -946,8 +962,13 @@ fn read_blocks<B: ByteOrder>(cursor: &mut Cursor<&Mmap>, used: bool) -> Blocks {
     let mut starts = Vec::new();
     let mut ends = Vec::new();
 
-    // Check to avoid huge allocation on corrupt or malicious block count.
-    assert!(2 * num_blocks * size_of::<u32>() <= cursor.get_ref().len(), "num_blocks too large, may be corrupt");
+    // Each block costs two u32s, a start and a size. Comparing the count against the bytes
+    // still ahead of the cursor, rather than against the whole file, bounds the allocation
+    // below by data that actually exists. Dividing rather than multiplying keeps the check
+    // free of overflow, which matters on 32-bit targets where the product can wrap.
+    let block_bytes = 2 * size_of::<u32>();
+    let remaining_bytes = cursor.get_ref().len() - cursor.position() as usize;
+    assert!(num_blocks <= remaining_bytes / block_bytes, "num_blocks too large, may be corrupt");
 
     if used {
         // Read starts.
@@ -961,10 +982,9 @@ fn read_blocks<B: ByteOrder>(cursor: &mut Cursor<&Mmap>, used: bool) -> Blocks {
             *end += *start;
         }
     } else {
-        // Advance the cursor, without reading the data itself.
-        let new_offset = cursor.position() as usize + 2 * num_blocks * size_of::<u32>();
-        assert!(new_offset <= cursor.get_ref().len(), "Failed to read blocks from 2bit file. Block indices truncated.");
-        cursor.set_position(new_offset as u64);
+        // Advance the cursor, without reading the data itself. The check above bounds
+        // num_blocks by the bytes remaining, so this can neither overflow nor pass the end.
+        cursor.set_position(cursor.position() + (num_blocks * block_bytes) as u64);
     }
 
     Blocks { starts, ends }

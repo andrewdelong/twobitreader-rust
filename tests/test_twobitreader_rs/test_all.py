@@ -68,7 +68,7 @@ def test_missing_file_error():
 def test_truncated_blocks_error():
     # File block indices were truncated by end of file.
     tbr = TwobitReader.open_masked(str(ASSETS / "malformed-truncated-blocks.2bit"))
-    with raises_panic(match="Failed to read block"):
+    with raises_panic(match="num_blocks too large"):
         for name in tbr.names():
             tbr.get(name, 0, tbr.seq_len(name))
 
