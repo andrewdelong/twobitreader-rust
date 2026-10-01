@@ -8,6 +8,20 @@ crate `twobitreader` and the Python package `twobitreader_rs` share a version nu
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-01
+
+First release of `twobitreader_rs` on PyPI. There are no library changes; 0.2.0 reached
+crates.io before the wheel-building workflow was in place, so it was never published for
+Python.
+
+### Added
+
+- Pre-built wheels on PyPI for CPython 3.9 through 3.14, including the free-threaded
+  3.13t and 3.14t builds, across Linux (glibc and musl; x86_64, x86, aarch64, armv7,
+  s390x, ppc64le), macOS (x86_64 and aarch64) and Windows (x64, x86, aarch64). A source
+  distribution is published alongside them for any platform not covered.
+- A release workflow that builds and publishes those wheels when a version tag is pushed.
+
 ## [0.2.0] - 2026-10-01
 
 `twobitreader` is now available from Python as **`twobitreader_rs`**, built with PyO3 and
@@ -50,7 +64,8 @@ extraction with `get_batch`, exon concatenation with `concat`, reverse complemen
 `prefetch` for cold files. Sequence records are parsed lazily so that opening a large file
 stays cheap. No git tag was made for this version.
 
-[Unreleased]: https://github.com/andrewdelong/twobitreader-rust/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/andrewdelong/twobitreader-rust/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/andrewdelong/twobitreader-rust/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/andrewdelong/twobitreader-rust/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/andrewdelong/twobitreader-rust/releases/tag/v0.1.1
 [0.1.0]: https://crates.io/crates/twobitreader/0.1.0
