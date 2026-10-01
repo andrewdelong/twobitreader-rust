@@ -150,6 +150,12 @@
 //! * `seq-macro` for generating 2bit decoder lookup table
 //! * `libc` for prefetching file ranges on Apple targets
 //! * `windows-sys` for prefetching file ranges on Windows targets
+//!
+//! # Use of AI
+//!
+//! Claude Code: generated the OS-specific prefetch loops; improved handling of corrupt or malicious files;
+//! documented the Python bindings and mirrored their tests and benchmark; improved error checking and
+//! propagation to Python more broadly; and generated the CI configurations.
 
 // Standard library
 use std::borrow::Borrow;

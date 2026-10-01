@@ -21,6 +21,7 @@ Python.
   aarch64. A source distribution is published alongside them for any platform or
   interpreter not covered, PyPy included.
 - A release workflow that builds and publishes those wheels when a version tag is pushed.
+- A statement on Use of AI.
 
 ## [0.2.0] - 2026-10-01
 
