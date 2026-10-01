@@ -7,7 +7,7 @@
 //! [standard format](http://genome.ucsc.edu/FAQ/FAQformat.html#format7) in bioinformatics.
 //!
 //! The motivation for `twobitreader` is speed; see benchmarks below.
-//! It is also available as a Python package `twobitreader_rs`.
+//! It is also available as a Python package named `twobitreader-rs`.
 //!
 //! The focus is raw reading from 2bit, but fast concatenation and reverse-complement methods
 //! are also provided to make higher-level use cases easier.
