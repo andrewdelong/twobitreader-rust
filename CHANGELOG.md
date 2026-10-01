@@ -17,9 +17,9 @@ Python.
 ### Added
 
 - Pre-built wheels on PyPI for CPython 3.9 through 3.14, including the free-threaded
-  3.13t and 3.14t builds, across Linux (glibc and musl; x86_64, x86, aarch64, armv7,
-  s390x, ppc64le), macOS (x86_64 and aarch64) and Windows (x64, x86, aarch64). A source
-  distribution is published alongside them for any platform not covered.
+  3.14t build, across Linux (glibc and musl), macOS and Windows, each on x86_64 and
+  aarch64. A source distribution is published alongside them for any platform or
+  interpreter not covered, PyPy included.
 - A release workflow that builds and publishes those wheels when a version tag is pushed.
 
 ## [0.2.0] - 2026-10-01
