@@ -25,16 +25,9 @@ jobs:
         platform:
           - runner: ubuntu-22.04
             target: x86_64
-          - runner: ubuntu-22.04
-            target: x86
-          - runner: ubuntu-22.04
+          # Native ARM runner, so aarch64 is built rather than emulated under QEMU.
+          - runner: ubuntu-24.04-arm
             target: aarch64
-          - runner: ubuntu-22.04
-            target: armv7
-          - runner: ubuntu-22.04
-            target: s390x
-          - runner: ubuntu-22.04
-            target: ppc64le
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
@@ -60,12 +53,8 @@ jobs:
         platform:
           - runner: ubuntu-22.04
             target: x86_64
-          - runner: ubuntu-22.04
-            target: x86
-          - runner: ubuntu-22.04
+          - runner: ubuntu-24.04-arm
             target: aarch64
-          - runner: ubuntu-22.04
-            target: armv7
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
@@ -93,11 +82,6 @@ jobs:
             target: x64
             pythons: "3.9\n3.10\n3.11\n3.12\n3.13\n3.13t\n3.14\n3.14t"
             python_arch: x64
-          - runner: windows-latest
-            target: x86
-            # No free-threaded 32-bit Windows builds are published.
-            pythons: "3.9\n3.10\n3.11\n3.12\n3.13\n3.14"
-            python_arch: x86
           - runner: windows-11-arm
             target: aarch64
             # setup-python publishes win-arm64 from 3.11 onwards.
