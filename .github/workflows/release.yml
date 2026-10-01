@@ -80,13 +80,25 @@ jobs:
         platform:
           - runner: windows-latest
             target: x64
-            pythons: "3.9\n3.10\n3.11\n3.12\n3.13\n3.14\n3.14t"
+            pythons: "3.9\n3.10\n3.11\n3.12\n3.13\n3.14"
             python_arch: x64
+            suffix: ""
+          - runner: windows-latest
+            target: x64
+            pythons: "3.14t"
+            python_arch: x64
+            suffix: "-freethreaded"
           - runner: windows-11-arm
             target: aarch64
             # setup-python publishes win-arm64 from 3.11 onwards.
-            pythons: "3.11\n3.12\n3.13\n3.14\n3.14t"
+            pythons: "3.11\n3.12\n3.13\n3.14"
             python_arch: arm64
+            suffix: ""
+          - runner: windows-11-arm
+            target: aarch64
+            pythons: "3.14t"
+            python_arch: arm64
+            suffix: "-freethreaded"
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
@@ -102,7 +114,7 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v6
         with:
-          name: wheels-windows-${{ matrix.platform.target }}
+          name: wheels-windows-${{ matrix.platform.target }}${{ matrix.platform.suffix }}
           path: dist
 
   macos:
@@ -113,10 +125,20 @@ jobs:
           - runner: macos-15-intel
             target: x86_64
             # setup-python has no darwin-arm64 build before 3.10, so 3.9 is Intel only.
-            pythons: "3.9\n3.10\n3.11\n3.12\n3.13\n3.14\n3.14t"
+            pythons: "3.9\n3.10\n3.11\n3.12\n3.13\n3.14"
+            suffix: ""
+          - runner: macos-15-intel
+            target: x86_64
+            pythons: "3.14t"
+            suffix: "-freethreaded"
           - runner: macos-latest
             target: aarch64
-            pythons: "3.10\n3.11\n3.12\n3.13\n3.14\n3.14t"
+            pythons: "3.10\n3.11\n3.12\n3.13\n3.14"
+            suffix: ""
+          - runner: macos-latest
+            target: aarch64
+            pythons: "3.14t"
+            suffix: "-freethreaded"
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
@@ -133,7 +155,7 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v6
         with:
-          name: wheels-macos-${{ matrix.platform.target }}
+          name: wheels-macos-${{ matrix.platform.target }}${{ matrix.platform.suffix }}
           path: dist
 
   sdist:
