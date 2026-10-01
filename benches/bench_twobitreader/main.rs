@@ -1,7 +1,6 @@
-use twobitreader::{reverse_complement, TwobitReader};
+use twobitreader::{TwobitReader, reverse_complement};
 
 // Standard library
-use std::collections::HashMap;
 use std::error::Error;
 use std::hint::black_box;
 use std::path::PathBuf;
@@ -12,8 +11,8 @@ mod util;
 use util::*;
 
 // Dependencies
-use rayon::prelude::*;
 use rayon::ThreadPoolBuilder;
+use rayon::prelude::*;
 
 // Which cache scenario to simulate in the benchmark run.
 #[derive(Clone, Copy, PartialEq)]
@@ -117,16 +116,13 @@ fn bench_hg38_transcripts(cache: Cache, parallel: Parallel) -> Result<Duration, 
             .flat_map(|(_id, chrom, _strand, exons)| exons.iter().map(move |&(start, end)| (chrom, start, end)));
         tbr.prefetch(exons);
     }
-    let dst: HashMap<_, _> = if parallel == Parallel::Rayon {
+    let dst: Vec<_> = if parallel == Parallel::Rayon {
         transcripts
             .par_iter()
-            .map(|(id, chrom, strand, exons)| (id, apply_strand(tbr.concat(chrom, exons), *strand)))
+            .map(|(_, chrom, strand, exons)| apply_strand(tbr.concat(chrom, exons), *strand))
             .collect()
     } else {
-        transcripts
-            .iter()
-            .map(|(id, chrom, strand, exons)| (id, apply_strand(tbr.concat(chrom, exons), *strand)))
-            .collect()
+        transcripts.iter().map(|(_, chrom, strand, exons)| apply_strand(tbr.concat(chrom, exons), *strand)).collect()
     };
 
     let duration = tic.elapsed();

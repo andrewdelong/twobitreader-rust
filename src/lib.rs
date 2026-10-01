@@ -6,12 +6,17 @@
 //! This crate provides fast DNA sequence extraction from 2bit files, a
 //! [standard format](http://genome.ucsc.edu/FAQ/FAQformat.html#format7) in bioinformatics.
 //!
-//! The motivation for this crate is speed.
-//! Extracting sequences is consistently faster than the best alternative.
+//! The motivation for `twobitreader` is speed; see benchmarks below.
+//! It is also available as a Python package `twobitreader_rs`.
+//!
 //! The focus is raw reading from 2bit, but fast concatenation and reverse-complement methods
 //! are also provided to make higher-level use cases easier.
 //!
 //! [![CI](https://github.com/andrewdelong/twobitreader-rust/actions/workflows/ci.yml/badge.svg)](https://github.com/andrewdelong/twobitreader-rust/actions/workflows/ci.yml)
+//! &nbsp;
+//! ![Windows](https://img.shields.io/badge/Windows-supported-blue?logo=windows)
+//! ![macOS](https://img.shields.io/badge/macOS-supported-blue?logo=apple)
+//! ![Linux](https://img.shields.io/badge/Linux-supported-blue?logo=linux)
 //!
 //! # Examples
 //!
@@ -78,8 +83,8 @@
 //!                                             (3844363, 3849834)]), // Exon 2
 //!     /* ... */
 //! ];
-//! // Concatenate exons and then reverse-complement if necessary.
-//! // (Correct if exons listed in genome-coordinate order.)
+//! // Concatenate exons and reverse-complement if negative strand.
+//! // (Correct when exons are listed in genome-coordinate order.)
 //! let seqs = transcripts.into_par_iter()
 //!     .map(|(id, chrom, strand, exons)| (id, stranded(tbr.concat(chrom, exons), strand)))
 //!     .collect::<HashMap<_, _>>();      // HashMap<&str, String>
@@ -100,11 +105,11 @@
 //! # Ok::<(), io::Error>(())
 //! ```
 //!
-//! # Speed
+//! # Benchmarks
 //!
 //! Two tasks were benchmarked:
 //! - **exons**: extract 133,388 distinct human exon sequences;
-//! - **transcripts**: concatenate 319,468 exons into 29,180 human spliced transcript sequences.
+//! - **transcripts**: concatenate 319,468 exons into 29,211 human spliced transcript sequences.
 //!
 //! Speed depends on parallelism and page cache (hot vs cold):
 //! - **hot** runs represent repeated or interactive dna extraction scenarios;
@@ -112,26 +117,31 @@
 //! - **prefetch** runs are cold but with a `prefetch` call preceding extraction.
 //!
 //! The table below shows running times in milliseconds. Experimental details are `BENCH.md`.
+//! This crate provides *twobitreader* (pure rust) and *twobitreader_rs* (python wrapper).
 //!
 //! | EXONS | 1-thread / hot | 1-thread / cold | 1-thread / prefetch | 16-thread / hot | 16-thread / cold |
 //! |---|---:|---:|---:|---:|---:|
-//! | **twobitreader** (rust)     | 90    | 1,600  | 180 | 11    | 190   |
-//! | **py2bit** (C, python)      | 220   | 2,800  | n/a | n/a   | n/a   |
-//! | **GenomeKit** (C++, python) | 340   | 2,400  | n/a | n/a   | n/a   |
-//! | **twobit** (rust)           | 390   | 3,500  | n/a | n/a   | n/a   |
-//! | **twobitToFa** (C)          | 1,000 | 4,500  | n/a | 340   | 850   |
-//! | **twobitreader** (python)   | 7,200 | 13,000 | n/a | 1,900 | 2,300 |
-//! | **Biopython** (python)      | 8,100 | 11,000 | n/a | n/a   | n/a   |
+//! | **twobitreader** (rs)        | 90    | 1,700  | 180 | 10    | 190   |
+//! | **twobitreader_rs** (rs, py) | 100   | 1,900  | 190 | *27   | *210  |
+//! | **py2bit** (c, py)           | 220   | 2,800  | n/a | n/a   | n/a   |
+//! | **GenomeKit** (cpp, py)      | 340   | 2,400  | n/a | n/a   | n/a   |
+//! | **twobit** (rs)              | 390   | 3,500  | n/a | n/a   | n/a   |
+//! | **twobitToFa** (c)           | 1,000 | 4,500  | n/a | 340   | 850   |
+//! | **twobitreader** (py)        | 7,200 | 13,000 | n/a | 1,900 | 2,300 |
+//! | **Biopython** (py)           | 8,100 | 11,000 | n/a | n/a   | n/a   |
 //!
 //! | TRANSCRIPTS | 1-thread / hot | 1-thread / cold | 1-thread / prefetch | 16-thread / hot | 16-thread / cold |
 //! |---|---:|---:|---:|---:|---:|
-//! | **twobitreader** (rust)     | 160    | 2,500  | 240 | 18    | 210   |
-//! | **py2bit** (C, python)      | 490    | 3,600  | n/a | n/a   | n/a   |
-//! | **GenomeKit** (C++, python) | 720    | 2,900  | n/a | n/a   | n/a   |
-//! | **twobit** (rust)           | 930    | 1,900  | n/a | n/a   | n/a   |
-//! | **twobitToFa** (C)          | 2,100  | 6,900  | n/a | 840   | 1,200 |
-//! | **twobitreader** (python)   | 13,000 | 21,000 | n/a | 2,800 | 3,500 |
-//! | **Biopython** (python)      | 19,000 | 25,000 | n/a | n/a   | n/a   |
+//! | **twobitreader** (rs)        | 140    | 1,700  | 230 | 13    | 190   |
+//! | **twobitreader_rs** (rs, py) | 180    | 2,100  | 310 | *27   | *220  |
+//! | **py2bit** (c, py)           | 490    | 3,600  | n/a | n/a   | n/a   |
+//! | **GenomeKit** (cpp, py)      | 720    | 2,900  | n/a | n/a   | n/a   |
+//! | **twobit** (rs)              | 930    | 1,900  | n/a | n/a   | n/a   |
+//! | **twobitToFa** (c)           | 2,100  | 6,900  | n/a | 840   | 1,200 |
+//! | **twobitreader** (py)        | 13,000 | 21,000 | n/a | 2,800 | 3,500 |
+//! | **Biopython** (py)           | 19,000 | 25,000 | n/a | n/a   | n/a   |
+//!
+//! Entries marked * were run in free-threaded Python.
 //!
 //! # Dependencies
 //!
@@ -147,18 +157,19 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, Cursor, ErrorKind::InvalidData, Read};
 use std::iter::zip;
-use std::mem::size_of;
-#[cfg(debug_assertions)]
 use std::mem::MaybeUninit;
+use std::mem::size_of;
 use std::ops::Range;
 use std::path::Path;
 use std::sync::OnceLock;
 
 // Crate modules
 mod decode;
-use decode::{decode, NUCS_PER_U8};
+use decode::{NUCS_PER_U8, decode};
 mod prefetch;
 use prefetch::PrefetchBatcher;
+#[cfg(feature = "python")]
+mod python;
 
 // Dependencies
 use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt};
@@ -175,7 +186,9 @@ enum Endianness {
     Little,
 }
 
-/// A reader for a single [2bit file](http://genome.ucsc.edu/FAQ/FAQformat.html#format7).
+/// A reader for a [2bit file](http://genome.ucsc.edu/FAQ/FAQformat.html#format7).
+///
+/// Use [`open`](Self::open) and [`open_masked`](Self::open_masked) to construct an instance.
 ///
 #[derive(Debug)]
 pub struct TwobitReader {
@@ -199,7 +212,7 @@ struct TwobitSequence {
 /// Details of a sequence record located deeper in the file, such as block indices.
 ///
 #[derive(Debug)]
-struct TwobitSequenceData {
+pub(crate) struct TwobitSequenceData {
     dna_offset: usize, // Offset (within mmap) to first byte of packed DNA
     dna_bytes: usize,  // Number of bytes (not nucleotides!) of packed DNA
     dna_len: usize,    // Number of nucleotides (not bytes!) in DNA sequence
@@ -292,7 +305,7 @@ impl TwobitReader {
         self.seq_by_name.contains_key(name.as_ref())
     }
 
-    /// Returns the length of DNA for the named sequence record.
+    /// Returns the number of nucleotides in the named sequence record.
     ///
     /// # Panics
     ///
@@ -354,7 +367,7 @@ impl TwobitReader {
         dst.clear();
         let buf = unsafe { dst.as_mut_vec() };
         buf.reserve_exact(end - start);
-        self.decode_and_append(seq, start, end, buf);
+        decode_and_append(&self.mmap, seq, start, end, buf);
     }
 
     /// Returns an iterator that calls [`get`](Self::get) for each query in the batch, for convenience.
@@ -508,14 +521,11 @@ impl TwobitReader {
         // Compute total length by summing range lengths; also check each range.
         let seq = self.get_seq_data_by_name(name);
         let ranges = ranges.as_ref();
-        let total_len = ranges
-            .iter()
-            .map(|&(start, end)| {
-                check_start_inclusive(start, base); // Check start >= base before subtracting
-                check_range(seq, start - base, end);
-                end - (start - base)
-            })
-            .sum();
+        let total_len = ranges.iter().fold(0, |total, &(start, end)| {
+            check_start_inclusive(start, base); // Check start >= base before subtracting
+            check_range(seq, start - base, end);
+            total + end - (start - base)
+        });
 
         // Pre-size a byte buffer to the total length needed.
         let mut buf = Vec::<u8>::new();
@@ -523,7 +533,7 @@ impl TwobitReader {
 
         // Decode each interval into its respective slice of the buffer.
         for &(start, end) in ranges.iter() {
-            self.decode_and_append(seq, start - base, end, &mut buf);
+            decode_and_append(&self.mmap, seq, start - base, end, &mut buf);
         }
 
         // SAFETY: buf is valid utf8 here because decode_and_append writes through whatever spare
@@ -565,7 +575,7 @@ impl TwobitReader {
         for (start, end) in ranges.into_iter() {
             check_range(seq, start, end);
             buf.reserve(end - start);
-            self.decode_and_append(seq, start, end, &mut buf);
+            decode_and_append(&self.mmap, seq, start, end, &mut buf);
         }
 
         // SAFETY: see concat()
@@ -658,10 +668,19 @@ impl TwobitReader {
     ///
     /// # Panics
     ///
-    /// Panics if any sequence name was not found or if `start > end``.
+    /// Panics if any sequence name was not found or if `start > end`.
     /// Panics if an IO error occurs while processing any newly-accessed sequence records.
     ///
-    pub fn prefetch<N, T, I>(&self, args: I)
+    pub fn prefetch<N, T, I>(&self, batch: I)
+    where
+        N: AsRef<str>,
+        T: Borrow<(N, usize, usize)>,
+        I: IntoIterator<Item = T>,
+    {
+        self.prefetch_impl(batch, 0)
+    }
+
+    fn prefetch_impl<N, T, I>(&self, batch: I, base: usize)
     where
         N: AsRef<str>,
         T: Borrow<(N, usize, usize)>,
@@ -669,11 +688,17 @@ impl TwobitReader {
     {
         // Bucket the ranges by sequence name. Most of the new vecs will remain empty and unallocated.
         let mut ranges_by_seq: Vec<Vec<Range<usize>>> = self.seqs.iter().map(|_| Vec::new()).collect();
-        for item in args.into_iter() {
+        for item in batch.into_iter() {
             let (name, start, end) = item.borrow();
             let seq_index = self.seq_by_name.get(name.as_ref()).expect("sequence name not found");
-            assert!(start <= end, "invalid range (start > end");
-            ranges_by_seq[*seq_index].push(*start..*end);
+
+            // Convert to a 0-based exclusive range before checking it, so that an empty
+            // 1-based range, written (start, start - 1), is accepted here exactly as it is
+            // by get_inclusive and concat_inclusive.
+            check_start_inclusive(*start, base);
+            let start = *start - base;
+            assert!(start <= *end, "invalid range (start > end)");
+            ranges_by_seq[*seq_index].push(start..*end);
         }
 
         let mut prefetch = PrefetchBatcher::new(&self.file, &self.mmap);
@@ -728,11 +753,48 @@ impl TwobitReader {
         prefetch.flush();
     }
 
+    /// A version of [`prefetch`](Self::prefetch) using 1-based inclusive ranges;
+    /// see [genomic interval notations]((https://standage.github.io/on-genomic-interval-notation.html)).
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use std::io;
+    /// # use twobitreader::TwobitReader;
+    /// # let tbr = TwobitReader::open("hg38.2bit")?;
+    /// let exons = [("chr1", 10001, 15000),
+    ///              ("chr2", 30001, 35000), /* ... */ ];
+    /// tbr.prefetch_inclusive(&exons);             // Ask the operating system to start paging.
+    /// let seqs = tbr.get_batch_inclusive(&exons); // Access the memory as it arrives.
+    /// # Ok::<(), io::Error>(())
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// See [`prefetch`](Self::prefetch).
+    ///
+    pub fn prefetch_inclusive<N, T, I>(&self, batch: I)
+    where
+        N: AsRef<str>,
+        T: Borrow<(N, usize, usize)>,
+        I: IntoIterator<Item = T>,
+    {
+        self.prefetch_impl(batch, 1)
+    }
+
     // Returns a reference to the [`TwobitSequence`] for the named sequence record.
     // Panics if no sequence record has that name.
     fn get_seq_data_by_name<N: AsRef<str>>(&self, name: N) -> &TwobitSequenceData {
-        let index = *self.seq_by_name.get(name.as_ref()).expect("sequence name not found");
-        self.get_seq_data_by_index(index)
+        self.try_get_seq_data_by_name(name).expect("sequence name not found")
+    }
+
+    // Returns a reference to the [`TwobitSequenceData`] for the named sequence record, or None
+    // if no sequence record has that name. Costs the same single lookup as the panicking form,
+    // since Option<&T> is a bare pointer; callers that must report the failure rather than
+    // panic (the Python bindings) use this one.
+    fn try_get_seq_data_by_name<N: AsRef<str>>(&self, name: N) -> Option<&TwobitSequenceData> {
+        let index = *self.seq_by_name.get(name.as_ref())?;
+        Some(self.get_seq_data_by_index(index))
     }
 
     // Returns a reference to the [`TwobitSequenceData`] for the named sequence record.
@@ -740,49 +802,6 @@ impl TwobitReader {
     fn get_seq_data_by_index(&self, index: usize) -> &TwobitSequenceData {
         let seq = &self.seqs[index];
         seq.data.get_or_init(|| read_seq_data(&self.mmap, self.masked, self.endianness, seq.data_offset))
-    }
-
-    // Decodes sequence [start..end] and appends it to dst.
-    // Requires dst to already have the capacity to hold the decoded bytes.
-    fn decode_and_append(&self, seq: &TwobitSequenceData, start: usize, end: usize, dst: &mut Vec<u8>) {
-        if start >= end {
-            return;
-        }
-
-        // Check that capacity is already sufficient.
-        debug_assert!(dst.capacity() - dst.len() >= end - start);
-
-        // Slice spanning all packed 2bit DNA data for this sequence record.
-        let dna = &self.mmap[seq.dna_offset..seq.dna_offset + seq.dna_bytes];
-
-        // Decode into the leading bytes of dst's unused capacity. Writing to unused capacity
-        // ensures that the used portion never contains uninitialized bytes or broken utf8.
-        let range_len = end - start;
-        let buf_uninit = &mut dst.spare_capacity_mut()[..range_len];
-
-        // Poison the buffer in debug builds just in case the logic of decode() violates the
-        // assumption that all bytes of buf get written to.
-        #[cfg(debug_assertions)]
-        buf_uninit.fill(MaybeUninit::new(0xfe));
-
-        // Decode packed 2-bit dna from the given start position.
-        decode(start, dna, buf_uninit);
-
-        // SAFETY: decode() wrote every byte of its destination slice. If we arrived
-        // here without a panic, then range_len additional bytes are now valid ASCII
-        // and can be safely appended (via set_len) to dst.
-        let old_len = dst.len();
-        unsafe {
-            dst.set_len(old_len + range_len);
-        }
-        let buf_init = &mut dst[old_len..];
-
-        // Apply N-block and lowercase masks to the newly-written portion of dst, in-place.
-        search_blocks(&seq.nblocks, start, buf_init, nblock_fill);
-        search_blocks(&seq.masks, start, buf_init, mask_fill);
-
-        // Catch any decoding errors or unwritten bytes.
-        debug_assert!(buf_init.is_ascii());
     }
 }
 
@@ -965,10 +984,63 @@ fn check_blocks(blocks: &Blocks, dna_len: usize) {
 #[cfg(not(debug_assertions))]
 fn check_blocks(_blocks: &Blocks, _dna_len: usize) {}
 
+// Decodes sequence [start..end] and appends it to dst.
+// Requires dst to already have the capacity to hold the decoded bytes.
+fn decode_and_append(mmap: &Mmap, seq: &TwobitSequenceData, start: usize, end: usize, dst: &mut Vec<u8>) {
+    if start >= end {
+        return;
+    }
+
+    // Check that capacity is already sufficient.
+    debug_assert!(dst.capacity() - dst.len() >= end - start);
+
+    // Decode into the leading bytes of dst's unused capacity. Writing to unused capacity
+    // ensures that the used portion never contains uninitialized bytes or broken utf8.
+    let range_len = end - start;
+    let buf_uninit = &mut dst.spare_capacity_mut()[..range_len];
+
+    // Poison the buffer in debug builds just in case the logic of decode() violates the
+    // assumption that all bytes of buf get written to.
+    #[cfg(debug_assertions)]
+    buf_uninit.fill(MaybeUninit::new(0xfe));
+
+    // Decode packed 2-bit dna from the given start position.
+    decode_from_mmap(mmap, seq, start, buf_uninit);
+
+    // SAFETY: decode() wrote every byte of its destination slice. If we arrived
+    // here without a panic, then range_len additional bytes are now valid ASCII
+    // and can be safely appended (via set_len) to dst.
+    let old_len = dst.len();
+    unsafe {
+        dst.set_len(old_len + range_len);
+    }
+    let buf_init = &mut dst[old_len..];
+
+    // Fill blocks within the newly-written portion of dst, in-place.
+    fill_blocks(seq, start, buf_init);
+
+    // Catch any decoding errors or unwritten bytes.
+    debug_assert!(buf_init.is_ascii());
+}
+
+pub(crate) fn decode_from_mmap(mmap: &Mmap, seq: &TwobitSequenceData, start: usize, dst: &mut [MaybeUninit<u8>]) {
+    // Slice spanning all packed 2bit DNA data for this sequence record.
+    let dna = &mmap[seq.dna_offset..seq.dna_offset + seq.dna_bytes];
+
+    // Decode packed 2-bit dna from the given start position.
+    decode(start, dna, dst);
+}
+
+pub(crate) fn fill_blocks(seq: &TwobitSequenceData, start: usize, dst: &mut [u8]) {
+    // Fill N-block and lowercase masks within dst, in-place.
+    search_blocks(&seq.nblocks, start, dst, nblock_fill);
+    search_blocks(&seq.masks, start, dst, mask_fill);
+}
+
 // Searches for block ranges that overlap query range [start..end] where end = start+dst.len().
 // For each block range found, calls f() with the corresponding sub-slice of dst,
 // so that its contents may be modified (e.g., replaced with N, or replaced with lowercase).
-fn search_blocks<F>(blocks: &Blocks, start: usize, dst: &mut [u8], f: F)
+pub(crate) fn search_blocks<F>(blocks: &Blocks, start: usize, dst: &mut [u8], f: F)
 where
     F: Fn(&mut [u8]),
 {

@@ -4,12 +4,17 @@
 This crate provides fast DNA sequence extraction from 2bit files, a
 [standard format](http://genome.ucsc.edu/FAQ/FAQformat.html#format7) in bioinformatics.
 
-The motivation for this crate is speed.
-Extracting sequences is consistently faster than the best alternative.
+The motivation for `twobitreader` is speed; see benchmarks below.
+It is also available as a Python package `twobitreader_rs`.
+
 The focus is raw reading from 2bit, but fast concatenation and reverse-complement methods
 are also provided to make higher-level use cases easier.
 
 [![CI](https://github.com/andrewdelong/twobitreader-rust/actions/workflows/ci.yml/badge.svg)](https://github.com/andrewdelong/twobitreader-rust/actions/workflows/ci.yml)
+&nbsp;
+![Windows](https://img.shields.io/badge/Windows-supported-blue?logo=windows)
+![macOS](https://img.shields.io/badge/macOS-supported-blue?logo=apple)
+![Linux](https://img.shields.io/badge/Linux-supported-blue?logo=linux)
 
 ## Examples
 
@@ -55,8 +60,8 @@ let transcripts = [                   // (transcript_id, chromosome, exons)
                                             (3844363, 3849834)]), // Exon 2
     /* ... */
 ];
-// Concatenate exons and then reverse-complement if necessary.
-// (Correct if exons listed in genome-coordinate order.)
+// Concatenate exons and reverse-complement if negative strand.
+// (Correct when exons are listed in genome-coordinate order.)
 let seqs = transcripts.into_par_iter()
     .map(|(id, chrom, strand, exons)| (id, stranded(tbr.concat(chrom, exons), strand)))
     .collect::<HashMap<_, _>>();      // HashMap<&str, String>
@@ -72,11 +77,11 @@ tbr.prefetch(&exons);             // Ask the operating system to start paging th
 let seqs = tbr.get_batch(&exons); // Access the memory as it arrives.
 ```
 
-## Speed
+## Benchmarks
 
 Two tasks were benchmarked:
 - **exons**: extract 133,388 distinct human exon sequences;
-- **transcripts**: concatenate 319,468 exons into 29,180 human spliced transcript sequences.
+- **transcripts**: concatenate 319,468 exons into 29,211 human spliced transcript sequences.
 
 Speed depends on parallelism and page cache (hot vs cold):
 - **hot** runs represent repeated or interactive dna extraction scenarios;
@@ -84,26 +89,31 @@ Speed depends on parallelism and page cache (hot vs cold):
 - **prefetch** runs are cold but with a `prefetch` call preceding extraction.
 
 The table below shows running times in milliseconds. Experimental details are `BENCH.md`.
+This crate provides *twobitreader* (pure rust) and *twobitreader_rs* (python wrapper).
 
 | EXONS | 1-thread / hot | 1-thread / cold | 1-thread / prefetch | 16-thread / hot | 16-thread / cold |
 |---|---:|---:|---:|---:|---:|
-| **twobitreader** (rust)     | 90    | 1,600  | 180 | 11    | 190   |
-| **py2bit** (C, python)      | 220   | 2,800  | n/a | n/a   | n/a   |
-| **GenomeKit** (C++, python) | 340   | 2,400  | n/a | n/a   | n/a   |
-| **twobit** (rust)           | 390   | 3,500  | n/a | n/a   | n/a   |
-| **twobitToFa** (C)          | 1,000 | 4,500  | n/a | 340   | 850   |
-| **twobitreader** (python)   | 7,200 | 13,000 | n/a | 1,900 | 2,300 |
-| **Biopython** (python)      | 8,100 | 11,000 | n/a | n/a   | n/a   |
+| **twobitreader** (rs)        | 90    | 1,700  | 180 | 10    | 190   |
+| **twobitreader_rs** (rs, py) | 100   | 1,900  | 190 | *27   | *210  |
+| **py2bit** (c, py)           | 220   | 2,800  | n/a | n/a   | n/a   |
+| **GenomeKit** (cpp, py)      | 340   | 2,400  | n/a | n/a   | n/a   |
+| **twobit** (rs)              | 390   | 3,500  | n/a | n/a   | n/a   |
+| **twobitToFa** (c)           | 1,000 | 4,500  | n/a | 340   | 850   |
+| **twobitreader** (py)        | 7,200 | 13,000 | n/a | 1,900 | 2,300 |
+| **Biopython** (py)           | 8,100 | 11,000 | n/a | n/a   | n/a   |
 
 | TRANSCRIPTS | 1-thread / hot | 1-thread / cold | 1-thread / prefetch | 16-thread / hot | 16-thread / cold |
 |---|---:|---:|---:|---:|---:|
-| **twobitreader** (rust)     | 160    | 2,500  | 240 | 18    | 210   |
-| **py2bit** (C, python)      | 490    | 3,600  | n/a | n/a   | n/a   |
-| **GenomeKit** (C++, python) | 720    | 2,900  | n/a | n/a   | n/a   |
-| **twobit** (rust)           | 930    | 1,900  | n/a | n/a   | n/a   |
-| **twobitToFa** (C)          | 2,100  | 6,900  | n/a | 840   | 1,200 |
-| **twobitreader** (python)   | 13,000 | 21,000 | n/a | 2,800 | 3,500 |
-| **Biopython** (python)      | 19,000 | 25,000 | n/a | n/a   | n/a   |
+| **twobitreader** (rs)        | 140    | 1,700  | 230 | 13    | 190   |
+| **twobitreader_rs** (rs, py) | 180    | 2,100  | 310 | *27   | *220  |
+| **py2bit** (c, py)           | 490    | 3,600  | n/a | n/a   | n/a   |
+| **GenomeKit** (cpp, py)      | 720    | 2,900  | n/a | n/a   | n/a   |
+| **twobit** (rs)              | 930    | 1,900  | n/a | n/a   | n/a   |
+| **twobitToFa** (c)           | 2,100  | 6,900  | n/a | 840   | 1,200 |
+| **twobitreader** (py)        | 13,000 | 21,000 | n/a | 2,800 | 3,500 |
+| **Biopython** (py)           | 19,000 | 25,000 | n/a | n/a   | n/a   |
+
+Entries marked * were run in free-threaded Python.
 
 ## Dependencies
 

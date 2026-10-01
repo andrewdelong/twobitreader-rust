@@ -1,4 +1,4 @@
-use twobitreader::{reverse_complement, TwobitReader};
+use twobitreader::{TwobitReader, reverse_complement};
 
 // Standard library
 use std::collections::HashMap;
@@ -198,6 +198,29 @@ fn test_get_invalid_range_panic() {
 #[should_panic(expected = "invalid range")]
 fn test_prefetch_invalid_range_panic() {
     open_tiny().prefetch([("seq_xy", 11, 10)]);
+}
+
+#[test]
+#[should_panic(expected = "invalid range")]
+fn test_prefetch_inclusive_invalid_range_panic() {
+    open_tiny().prefetch_inclusive([("seq_xy", 12, 10)]);
+}
+
+#[test]
+#[should_panic(expected = "invalid start")]
+fn test_prefetch_inclusive_invalid_start_panic() {
+    open_tiny().prefetch_inclusive([("seq_xy", 0, 10)]);
+}
+
+// An empty 1-based range is written (start, start - 1), and must be accepted by
+// prefetch_inclusive just as it is by get_inclusive and concat_inclusive.
+#[test]
+fn test_prefetch_inclusive_empty_range() {
+    let tbr = open_tiny();
+    tbr.prefetch_inclusive([("seq_xy", 1, 0)]);
+    tbr.prefetch_inclusive([("seq_xy", 11, 10)]);
+    assert_eq!(tbr.get_inclusive("seq_xy", 11, 10), "");
+    assert_eq!(tbr.concat_inclusive("seq_xy", [(11, 10)]), "");
 }
 
 #[test]

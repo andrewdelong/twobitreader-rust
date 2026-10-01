@@ -121,13 +121,19 @@ pub fn read_exons() -> Result<Vec<(String, usize, usize)>, Box<dyn Error>> {
 }
 
 // Reads gencode-transcripts.bed.gz and groups the intervals by transcript ID (BED name field).
+// The original interval ordering is preserved to match the Python benchmarks.
 // The returned Vec has structure:
 //   Vec<(transcript_id, chrom, strand, Vec<(start, end)>)>
 pub fn read_transcripts() -> Result<Vec<(String, String, char, Vec<(usize, usize)>)>, Box<dyn Error>> {
     let bed = read_bed("benches/assets/gencode-transcripts.bed.gz")?;
-    let transcripts =
-        bed.into_iter().map(|(chrom, start, end, strand, id)| ((id, chrom, strand), (start, end))).into_group_map();
-    let transcripts = transcripts.into_iter().map(|((id, chrom, strand), exons)| (id, chrom, strand, exons)).collect();
+    let transcripts = bed
+        .into_iter()
+        .chunk_by(|(chrom, _, _, strand, id)| (id.clone(), chrom.clone(), *strand))
+        .into_iter()
+        .map(|((id, chrom, strand), rows)| {
+            (id, chrom, strand, rows.map(|(_, start, end, _, _)| (start, end)).collect())
+        })
+        .collect();
     Ok(transcripts)
 }
 

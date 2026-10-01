@@ -22,3 +22,16 @@ tests/assets/hg*.2bit
 
 # Profiler output
 profile.json
+
+# Python bytecode and tooling caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Python build artifacts (maturin writes wheels to target/, but not with every invocation)
+dist/
+*.whl
+*.so
+
+# macOS Finder metadata
+.DS_Store

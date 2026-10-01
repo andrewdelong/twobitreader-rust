@@ -4,11 +4,13 @@ The table of timings shown in the README is described below.
 
 ### Libraries
 * [`twobitreader 0.1`](https://github.com/andrewdelong/twobitreader-rust) - Rust crate for reading 2bit files
+* [`twobitreader_rs 0.1`](https://github.com/andrewdelong/twobitreader-rust) - Python wrapper for the Rust crate.
 * [`twobit 0.2`](https://github.com/jbethune/rust-twobit) - Rust crate for reading and writing 2bit files
 * [`py2bit 1.0.1`](https://github.com/deeptools/py2bit) - Python package written in C
 * [`GenomeKit 7.6.1`](https://github.com/deepgenomics/GenomeKit) - Python package written in C++
 * [`twobitreader 3.1`](https://github.com/benjschiller/twobitreader) - Python package
 * [`twobitToFa`](https://genome.ucsc.edu/goldenPath/help/twoBit.html) - Command line utility written in C
+* [`biopython`](https://biopython.org/) - Python package for bioinformatics
 
 ### Data
 * All experiments extracted from `hg38.p13.2bit` (850MB, [link](https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/p13/)).
@@ -33,14 +35,16 @@ The table of timings shown in the README is described below.
 * Time for opening the `.2bit` file was included for all methods.
 * Time for reading the `.bed` file was not included, except for command-line `twobitToFa` (`bed.gz` was pre-unzipped).
 * All parallel experiments used 16 threads, except `twobitToFa` which was faster with 8.
+* Parallel runs of `twobitreader_rs` (the python wrapper) used free-threading Python.
 * Missing timings (`n/a`):
-  * Parallel timings for `py2bit` were not collected because Python's `multiprocessing` requires pickling
-    (`TypeError: cannot pickle 'py2bit.pyTwoBit' object`).
+  * Parallel timings for `py2bit` were not collected because Python's `multiprocessing`
+    requires pickling (`TypeError: cannot pickle 'py2bit.pyTwoBit' object`) and
+    because `py2bit` was not yet compatible with free-threaded Python.
   * Parallel timings for `twobit` were not collected because it requires a mutable reference
     that cannot be shared across threads by parallel libraries such as `rayon`.
 * Hot vs cold:
   * In "hot" experiments, the entire 2bit file was read into page cache beforehand.
-  * In "cold" experiments, cache was disabled via `fcntl(F_NOCACHE)` (twobitreader) or wiped via `sudo purge` (others).
+  * In "cold" experiments, cache was disabled via `fcntl(F_NOCACHE)` (twobitreader) or wiped prior to a single run via `sudo purge` (others).
 
 
 ### Extra details for Rust benchmarking
@@ -68,8 +72,8 @@ def bench_transcript_basic_py2bit():
     
     # Exons are in genomic coordinate order, so reverse the joined sequence, not individual exons.
     tb = py2bit.open("hg38.p13.2bit")
-    seqs = {id: apply_strand("".join([tb.sequence(chrom, *exon) for exon in exons]), strand)
-            for (id, chrom, strand, exons) in transcripts}
+    seqs = [apply_strand("".join([tb.sequence(chrom, *exon) for exon in exons]), strand)
+            for (id, chrom, strand, exons) in transcripts]
     
     return time() - start_time
 
@@ -95,6 +99,8 @@ Parallel experiments were the same, but used `multiprocessing.Pool` to implement
 
 * Timings include constructing the `Interval(chrom, strand, start, end, "hg38.p13")` 
   object for each dna query, since that's a GenomeKit-specific overhead.
+  * If that overhead is excluded, GenomeKit is nearly as fast as `twobitreader_rs`,
+    completing *exons_hot* in 160 ms and *transcripts_hot* in 320 ms.
 * The parallel timings say "n/a" because GenomeKit is not yet compatible
   with free-threaded Python, and the pickling overhead of `multiprocessing.Pool`
   negates any performance benefit of parallelism this way.

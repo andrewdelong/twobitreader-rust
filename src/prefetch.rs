@@ -123,11 +123,7 @@ fn clamp_range(range: Range<usize>, mmap_len: usize) -> Option<Range<usize>> {
 
     // Otherwise sanitize the range for safety.
     let clamped = range.start.min(mmap_len)..range.end.min(mmap_len);
-    if clamped.start < clamped.end {
-        Some(clamped)
-    } else {
-        None
-    }
+    if clamped.start < clamped.end { Some(clamped) } else { None }
 }
 
 impl<'a> Drop for PrefetchBatcher<'a> {
