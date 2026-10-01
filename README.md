@@ -11,10 +11,11 @@ The focus is raw reading from 2bit, but fast concatenation and reverse-complemen
 are also provided to make higher-level use cases easier.
 
 [![CI](https://github.com/andrewdelong/twobitreader-rust/actions/workflows/ci.yml/badge.svg)](https://github.com/andrewdelong/twobitreader-rust/actions/workflows/ci.yml)
-&nbsp;
 ![Windows](https://img.shields.io/badge/Windows-supported-blue?logo=windows)
 ![macOS](https://img.shields.io/badge/macOS-supported-blue?logo=apple)
 ![Linux](https://img.shields.io/badge/Linux-supported-blue?logo=linux)
+[![Conda Version](https://img.shields.io/conda/vn/conda-forge/twobitreader-rs.svg)](https://anaconda.org/conda-forge/twobitreader-rs)
+[![PyPI Version](https://img.shields.io/pypi/v/twobitreader-rs.svg)](https://pypi.org/project/twobitreader-rs/)
 
 ## Examples
 
