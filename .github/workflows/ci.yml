@@ -23,6 +23,13 @@ jobs:
       - run: cargo test --locked --verbose --no-fail-fast
       - run: cargo build --locked --verbose --release
       - run: cargo bench --locked --verbose --no-run
-      - run: cargo clippy --locked --no-deps
+      - run: cargo clippy --locked --all-features --no-deps
       - run: cargo fmt --check
       - run: cargo rustdoc --locked --all-features -- --extend-css custom.css
+      # Python wrapper: build a wheel and run tests against the installed extension
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.9" }
+      - run: pip install maturin pytest
+      - run: maturin build --release --out dist
+      - run: pip install --no-index --find-links dist twobitreader_rs
+      - run: pytest tests/test_twobitreader_rs -q
