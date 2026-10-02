@@ -5,6 +5,7 @@ build-backend = "maturin"
 [project]
 name = "twobitreader-rs"
 description = "Python bindings for the twobitreader Rust crate"
+readme = "README.md"
 requires-python = ">=3.9"
 classifiers = [
     "Topic :: Scientific/Engineering :: Bio-Informatics",
@@ -29,6 +30,9 @@ classifiers = [
 dynamic = ["version"]
 license = "MIT OR Apache-2.0"
 license-files = ["LICENSE-MIT", "LICENSE-APACHE"]
+
+[project.urls]
+Repository = "https://github.com/andrewdelong/twobitreader-rust"
 
 [project.optional-dependencies]
 tests = [
