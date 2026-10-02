@@ -12,7 +12,7 @@ crate `twobitreader` and the Python package `twobitreader_rs` share a version nu
 
 ### Added
 
-- README_PY.md to document Python usage and to provide a description to PyPI.
+- README-PY.md to document Python usage and to provide a description to PyPI.
 
 ## [0.2.1] - 2026-10-01
 
@@ -71,7 +71,8 @@ extraction with `get_batch`, exon concatenation with `concat`, reverse complemen
 `prefetch` for cold files. Sequence records are parsed lazily so that opening a large file
 stays cheap. No git tag was made for this version.
 
-[Unreleased]: https://github.com/andrewdelong/twobitreader-rust/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/andrewdelong/twobitreader-rust/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/andrewdelong/twobitreader-rust/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/andrewdelong/twobitreader-rust/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/andrewdelong/twobitreader-rust/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/andrewdelong/twobitreader-rust/releases/tag/v0.1.1
