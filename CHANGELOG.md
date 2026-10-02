@@ -8,6 +8,12 @@ crate `twobitreader` and the Python package `twobitreader_rs` share a version nu
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-10-01
+
+### Added
+
+- README_PY.md to document Python usage and to provide a description to PyPI.
+
 ## [0.2.1] - 2026-10-01
 
 First release of `twobitreader_rs` on PyPI. There are no library changes; 0.2.0 reached
