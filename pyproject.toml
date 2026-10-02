@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "twobitreader-rs"
 description = "Python bindings for the twobitreader Rust crate"
-readme = "README.md"
+readme = "README-PY.md"
 requires-python = ">=3.9"
 classifiers = [
     "Topic :: Scientific/Engineering :: Bio-Informatics",
